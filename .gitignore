@@ -1,0 +1,4 @@
+docs/
+*/main
+*.o
+*/.idea
