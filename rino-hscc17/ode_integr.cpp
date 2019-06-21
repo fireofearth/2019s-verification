@@ -442,10 +442,6 @@ void fixpoint(vector<vector<AAF>> &y0, vector<vector<AAF>> &Jac1_g_rough, vector
     widen = interval(-1,1);
     
     while (iter <=1 || !subseteq(J1,y0)) {
-        //     cout << "J1=";
-        //     print(J1);
-        //    cout << "y0=";
-        //    print(y0);
         if (iter > 25)
             coeff = 1;
         else if (iter > 20)
@@ -476,12 +472,6 @@ void fixpoint(vector<vector<AAF>> &y0, vector<vector<AAF>> &Jac1_g_rough, vector
         iter = iter+1;
     }
 }
-
-
-
-
-
-//FadbadVarODE(int n,TFfunction f,void*param= 0);
 
 // enclosure by Taylor model of order order of the flow g_i(center(X0)) at time tau
 void gTaylor(vector<AAF> &g, Ode ode_x0, Ode ode_g0, double tau, int order)
@@ -626,7 +616,6 @@ void print_solutionstep_ode(vector<interval> &Xouter, vector<interval> &Xinner, 
         outFile_outer[i] << tnp1 << "\t" << inf(Xouter[i]) << "\t" << sup(Xouter[i]) << endl;
         outFile_center[i] << tnp1 << "\t" << inf(Xcenter[i]) << "\t" << sup(Xcenter[i]) << endl;
         outFile_inner[i] << tnp1 << "\t" << inf(Xinner[i]) << "\t" << sup(Xinner[i]) << endl;
-   //     outFile_inner_robust[i] << tnp1 << "\t" << inf(Xinner_robust[i]) << "\t" << sup(Xinner_robust[i]) << endl;
     }
     minwidth_ratio = (sup(Xinner[0])-inf(Xinner[0]))/(sup(Xouter[0])-inf(Xouter[0]));
     for (int i=1 ; i<sysdim ; i++) {
@@ -636,44 +625,21 @@ void print_solutionstep_ode(vector<interval> &Xouter, vector<interval> &Xinner, 
     }
     if (tnp1 != 0)
     outFile_width_ratio << tnp1 << "\t" << minwidth_ratio << endl;
-    
-  /*  mean_dist = 0.0;
-    for (int i=0 ; i<sysdim ; i++) {
-        if (! isEmpty(Xinner[i])) {
-            if (sup(Xouter[i])-sup(Xinner[i]) > inf(Xinner[i])-inf(Xouter[i]))
-                aux = sup(Xouter[i])-sup(Xinner[i]);
-            else
-                aux = inf(Xinner[i])-inf(Xouter[i]);
-            mean_dist += aux;
-            cout << "distance between inner and outer approx on component " << i <<" is " << aux << endl;
-        }
-    }
-    
-    mean_dist = mean_dist / sysdim;
-    if (mean_dist != 0)
-        cout << "mean distance between inner and outer approx is " << mean_dist << endl; */
 }
 
 
 
 
-HybridStep_ode init_ode(OdeFunc bf, vector<AAF> &x0, vector<AAF> &x, vector<vector<AAF>> &J0, double tn, double tau, int order)
-{
+HybridStep_ode init_ode(OdeFunc bf, vector<AAF> &x0, vector<AAF> &x,
+        vector<vector<AAF>> &J0, double tn, double tau, int order) {
     OdeVar odeVAR_x = OdeVar(bf);
     OdeVar odeVAR_g = OdeVar(bf);
     Ode ode_x0 = Ode(bf);
     Ode ode_g0 = Ode(bf);
     vector<AAF> init_x;
-    
-    if (innerapprox == 1)
-       init_x = x0;
-    else
-        init_x = x;
-    
+    init_x = x0;
     TM_val TMcenter = TM_val(ode_x0, ode_g0, order, init_x, tn, tau);
-    //if (innerapprox == 1)
     TM_Jac TMJac = TM_Jac(odeVAR_x, odeVAR_g, order, x, J0, tn, tau);
-    
     HybridStep_ode res = HybridStep_ode(bf,TMcenter,TMJac,tn,tau,order);
     return res;
 }
@@ -681,13 +647,9 @@ HybridStep_ode init_ode(OdeFunc bf, vector<AAF> &x0, vector<AAF> &x, vector<vect
 
 
 
-void HybridStep_ode::init_nextstep(double _tau)
-{
-    
+void HybridStep_ode::init_nextstep(double _tau) {
     TMcenter.init_nextstep(_tau);
-    if (innerapprox == 1)
-        TMJac.init_nextstep(_tau);
-    
+    TMJac.init_nextstep(_tau);
     tn = tn + tau;
     tau = _tau;
     
@@ -695,19 +657,15 @@ void HybridStep_ode::init_nextstep(double _tau)
 }
 
 
-void HybridStep_ode::TM_build()
-{
+void HybridStep_ode::TM_build() {
     TMcenter.build(bf);
-    if (innerapprox == 1)
-        TMJac.build(bf);
+    TMJac.build(bf);
 }
 
 // eval s-th Taylor model and initialize s+1-th
-void HybridStep_ode::TM_eval()
-{
+void HybridStep_ode::TM_eval() {
     TMcenter.eval();
-    if (innerapprox == 1)
-        TMJac.eval();
+    TMJac.eval();
 }
 
 

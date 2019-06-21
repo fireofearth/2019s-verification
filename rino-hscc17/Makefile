@@ -2,7 +2,6 @@ CXX = g++
 
 MAX_ORDER = 40
 
-#LIBS = -laaf -lprim -lgsl -llapack -lblas -lstdc++ 
 LIBS = -laaf -lprim -lgsl -llapack -lblas -lcblas -lstdc++ 
 
 FILIBHOME = $(HOME)/lib/filib-3.0.2
@@ -11,11 +10,10 @@ FADBADHOME = $(HOME)/lib/fadbad-2.1
 
 CURRENT_DIR = $(shell pwd)
 
-#CXXFLAGS = -ggdb -Wall -frounding-math -DMAXORDER=$(MAX_ORDER) -I. -I$(FILIBHOME) -I$(FADBADHOME) -I/usr/local/include
-CXXFLAGS = -ggdb -Wall -frounding-math -DMAXORDER=$(MAX_ORDER) -I. -I$(FILIBHOME)/include -I$(FADBADHOME) -I/usr/include \
+# turned off -Wall
+CXXFLAGS = -ggdb  -frounding-math -DMAXORDER=$(MAX_ORDER) -I. -I$(FILIBHOME)/include -I$(FADBADHOME) -I/usr/include \
 	 -I$(CURRENT_DIR)/aaflib-0.1 -fpermissive -std=c++11
 
-#LDFLAGS  +=  -L/usr/local/lib -L$(CURRENT_DIR)/aaflib-0.1 -L$(FILIBHOME)/libprim/.libs/
 LDFLAGS  +=  -L/usr/local/lib -L$(CURRENT_DIR)/aaflib-0.1 -L$(FILIBHOME)/lib
 
 SOURCES_utils = matrix.cpp inner.cpp ode_def.cpp ode_integr.cpp dde_integr.cpp

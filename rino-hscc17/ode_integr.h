@@ -19,8 +19,6 @@
 
 #include "fadbad_aa.h"
 #include "utils.h"
-//#include "hybrid.h"
-//#include "taylor.h"
 
 #include <iostream>
 #include <ostream>

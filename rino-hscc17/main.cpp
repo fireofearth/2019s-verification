@@ -18,11 +18,9 @@
 #include "utils.h"
 #include "ode_def.h"
 #include "matrix.h"
-//#include "taylor.h"
 #include "inner.h"
 #include "ode_integr.h"
 #include "dde_integr.h"
-//#include "tinyxml2.h"
 #include <iostream>
 #include <ostream>
 #include <fstream>
@@ -32,7 +30,6 @@
 #include <stdlib.h>
 
 using namespace std;
-//using namespace tinyxml2;
 
 
 vector<ofstream> outFile_outer_minimal;   //  minimal outer-approximated range for each variable of the system
@@ -51,14 +48,9 @@ ofstream outFile_relmeanerror_outer; // mean on xi of error between outer-approx
 ofstream outFile_relmeanerror_inner; // mean on xi of error between inner-approx and analytical solution if any, over width of exact tube
 ofstream outFile_relmeanerror_diff;  // mean on xi of error between outer-approx and inner-approx, over width of over-approx tube
 
-
-//using namespace fadbad;
-
 void open_outputfiles();
 void print_finalstats(clock_t begin);
 void generate_gnuplot_script();
-void read_parameters(const char * params_filename, double &tau, double &t_end, int &order, char *sys_name, char* initial_condition);
-void read_system(const char * system_filename, char *sys_name);
 
 int systype; // 0 is ODE, 1 is DDE
 int syschoice; // choice of system to analyze
@@ -68,10 +60,7 @@ void print_initstats(vector<AAF> &x);
 void print_ErrorMeasures(int current_iteration, vector<AAF> inputs_save, double d0);
 void print_finalsolution(vector<AAF> inputs_save, int max_it, double d0);
 
-
-
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     // all these parameters in initialization functions defined in ode_def.cpp
     double tn;    // current time
     double tau;   // integration time step (fixed step for now)
@@ -81,128 +70,55 @@ int main(int argc, char* argv[])
     
     double d0; // = 1;   // delay in DDE
     int nb_subdiv; // = 10;   // number of Taylor models on [0,d0]
-   
-    /********* DEFINING SYSTEM *******************/
-    // default is running example of CAV 2018 paper
+
+    /**
+     * Colin: fixed runtime arguments
+     * Runs the HSCC 2014 Brusselator
+     *
+     */
     systype = 0; // EDO = 0, DDE = 1
     syschoice = 2;
-    sysdim = 2;
-    jacdim = 2;
-    sysdim_params = 2;
-    // nb of initial subdivisions of the input range
-    nb_subdiv_init = 1;
-    /*if (argc == 3)
-    {
-        systype = atoi(argv[1]);
-        syschoice = atoi(argv[2]);
-    }
-    else
-    {
-        cout << "You can choose your system: " << endl;
-        cout << "First argument is equation type : 0 for ODE, 1 for DDE" << endl;
-        cout << "First argument is system numbe :" << endl;
-       // cout << "For ODEs: 1 for 1D running example, 2 for Brusselator, 3 for ballistic," << endl;
-       // cout << "4 for linearized ballitsic, 5 for self driving car with jacdim = 2, 6 for self driving car with jacdim = 4,"<<endl;
-      //  cout << "For DDEs: 1 for 1D running example, 6 for self driving car with jacdim = 2, 7 for self driving car with sysdim = 4,"<<endl;
-     //   cout << "8 for selfdriving with sysdim=2, jacdim=4"<<endl;
-    }*/
-    //define_system_dim(); // defines value of sysdim: depends on syschoice
-    /*******************************************************************************************/
-   
-    DdeFunc bf;    // contains the differential system - defined in ode_def.h
-    DdeJacFunc bbf;
-    OdeFunc obf;    // contains the differential system - defined in ode_def.h
-    
-    open_outputfiles();
-    
+    /***/
+
     clock_t begin = clock();
 
     init_system(t_begin,t_end,tau,d0,nb_subdiv,order);
+
+    open_outputfiles();
     
     vector<AAF> inputs_save(jacdim);
     for (int i=0 ; i<jacdim; i++)
         inputs_save[i] = inputs[i];
-    
-    /*************************************************************************** DDE ************************************************************/
-    if (systype == 1) // DDE
-    {
-        // printing exact solution if any for comparison
-        print_exactsolutiondde(t_begin, d0, tau, t_end, nb_subdiv/*, ip*/);
-        
-        for (current_subdiv=1 ; current_subdiv<=nb_subdiv_init; current_subdiv++)
-        {
-            if (nb_subdiv_init > 1)
-                init_subdiv(current_subdiv, inputs_save, 0);
-            current_iteration = 0;
-            
-            tn = t_begin;
-            
-            HybridStep_dde prev_step = HybridStep_dde(bf,bbf,order,tn,tau,d0,nb_subdiv);
-            prev_step.init_dde();
-            
-            HybridStep_dde cur_step = prev_step.init_nextbigstep(tau);
-            
-            //******** Integration loop ************************
-            
-            while (cur_step.tn+d0 <= t_end)
-            {
-                // build Taylor model for Value and Jacobian and deduce guards for each active mode
-                for (int j=0 ; j<nb_subdiv ; j++)
-                {
-                    cur_step.TM_build(j);  // j-th Taylor model valid on [tn+j*d0,tn+(j+1)*d0]
-                    // eval at tn+tau
-                    cur_step.TM_evalandprint_solutionstep(j,eps); // cur_step.tn+(j+1)*tau/nb_subdiv);
-                    cout << endl;
-                    
-                    if (j < nb_subdiv-1)
-                        cur_step.init_nextsmallstep(j);
-                }
-                cur_step = cur_step.init_nextbigstep(tau);
-            }
-            for (int i=0 ; i<sysdim ; i++) {
-                outFile_inner[i] << "\n \n";
-            }
+
+    OdeFunc obf;    // contains the differential system - defined in ode_def.h
+    vector<vector<AAF>> J(sysdim, vector<AAF>(jacdim));
+    vector<AAF> x(sysdim);
+    vector<AAF> xcenter(sysdim);
+
+    for (current_subdiv=1; current_subdiv <= nb_subdiv_init; current_subdiv++) {
+        if (nb_subdiv_init > 1) init_subdiv(current_subdiv, inputs_save, 0);
+        current_iteration = 0;
+
+        cout << "center_inputs[0]" << center_inputs[0] << endl;
+        cout << "center_inputs[1]" <<  center_inputs[1] << endl;
+        cout << inputs[0] << endl;
+        cout << inputs[1] << endl;
+
+        set_initialconditions(x,xcenter,J);  //            setId(J0);
+
+        tn = t_begin;
+        print_initstats(inputs);
+
+        HybridStep_ode cur_step = init_ode(obf,xcenter,x,J,tn,tau,order);
+
+        while (cur_step.tn < t_end) {
+            // build Taylor model for Value and Jacobian and deduce guards for each active mode
+            cur_step.TM_build();
+            cur_step.TM_evalandprint_solutionstep(eps,cur_step.tn+tau);
+            cur_step.init_nextstep(tau);
         }
-        
-        print_finalsolution(inputs_save, (t_end-t_begin)*nb_subdiv/d0, d0);
     }
-     /*************************************************************************** EDO ************************************************************/
-    else // systype == 0: EDO
-    {
-        vector<vector<AAF>> J(sysdim, vector<AAF>(jacdim));
-        vector<AAF> x(sysdim);
-        vector<AAF> xcenter(sysdim);
-        
-        
-        for (current_subdiv=1 ; current_subdiv<=nb_subdiv_init; current_subdiv++)
-        {
-            if (nb_subdiv_init > 1)
-                init_subdiv(current_subdiv, inputs_save, 0);
-            current_iteration = 0;
-            
-            
-            cout << "center_inputs[0]" << center_inputs[0] << endl;
-            cout << "center_inputs[1]" <<  center_inputs[1] << endl;
-            cout << inputs[0] << endl;
-            cout << inputs[1] << endl;
-            
-            set_initialconditions(x,xcenter,J);  //            setId(J0);
-            
-            tn = t_begin;
-            print_initstats(inputs);
-            
-            HybridStep_ode cur_step = init_ode(obf,xcenter,x,J,tn,tau,order);
-            
-            while (cur_step.tn < t_end)
-            {
-                // build Taylor model for Value and Jacobian and deduce guards for each active mode
-                cur_step.TM_build();
-                cur_step.TM_evalandprint_solutionstep(eps,cur_step.tn+tau);
-                cur_step.init_nextstep(tau);
-            }
-        }
-        print_finalsolution(inputs_save, (t_end-t_begin)/tau, d0);
-    }
+    print_finalsolution(inputs_save, (t_end-t_begin)/tau, d0);
     
     print_finalstats(begin);
 
@@ -231,7 +147,6 @@ void print_finalsolution(vector<AAF> inputs_save, int max_it, double d0)
                 if (!((Xinner_print[j][current_iteration][i].sup() >= Xinner_print[0][current_iteration][i].inf()) &&
                       (Xinner_print[0][current_iteration][i].sup() >= Xinner_print[j][current_iteration][i].inf())))
                 {
-                    //  cout << "coucou " << Xinner_print[j][current_iteration][i] << " " << Xinner_print[j][current_iteration][i] << endl;
                     no_hole = false;
                 }
                 // Warning: joining tubes is correct for inner approx only if no hole
@@ -240,8 +155,6 @@ void print_finalsolution(vector<AAF> inputs_save, int max_it, double d0)
             }
             if (nb_subdiv_init > 1)
                 outFile_outer[i] << t_print[current_iteration] << "\t" << inf(Xouter_print[0][current_iteration][i]) << "\t" << sup(Xouter_print[0][current_iteration][i]) << endl;
-            
-            //  outFile_inner[i] << t_print[current_iteration] << "\t" << inf(Xinner_print[0][current_iteration][i]) << "\t" << sup(Xinner_print[0][current_iteration][i]) << endl;
         }
         
         print_ErrorMeasures(current_iteration,inputs_save,d0);
@@ -251,8 +164,7 @@ void print_finalsolution(vector<AAF> inputs_save, int max_it, double d0)
         cout << "NO HOLE when joining the inner-approx tubes";
 }
 
-void print_ErrorMeasures(int current_iteration, vector<AAF> inputs_save, double d0)
-{
+void print_ErrorMeasures(int current_iteration, vector<AAF> inputs_save, double d0) {
     double aux, minwidth_ratio, sum, rel_sum;
     vector<interval> Xexact(sysdim);
     
@@ -268,42 +180,6 @@ void print_ErrorMeasures(int current_iteration, vector<AAF> inputs_save, double 
     if (t_print[current_iteration] != 0)
     outFile_width_ratio << t_print[current_iteration] << "\t" << minwidth_ratio << endl;
     
-    
- /*
-    Xexact = AnalyticalSol(t_print[current_iteration],inputs_save,d0);
-    
-    if (sup(Xexact[0]) >= inf(Xexact[0])) // an analytical solution exists
-    {
-        // mean over the xi of the error between over-approx and exact solution
-        sum = 0;
-        rel_sum = 0;;
-        for (int i=0 ; i<sysdim ; i++)
-        {
-            aux = max(sup(Xouter_print[0][current_iteration][i])-sup(Xexact[i]),inf(Xexact[i])-inf(Xouter_print[0][current_iteration][i]));
-            sum += aux;
-            rel_sum += aux / (sup(Xexact[i])-inf(Xexact[i]));
-        }
-        sum = sum/sysdim;
-        rel_sum = rel_sum/sysdim;
-        outFile_meanerror_outer << t_print[current_iteration] << "\t" << sum << endl;
-        outFile_relmeanerror_outer << t_print[current_iteration] << "\t" << rel_sum << endl;
-        
-        // mean over the xi of the error between inner-approx and exact solution
-        sum = 0;
-        rel_sum = 0;
-        for (int i=0 ; i<sysdim ; i++)
-        {
-            aux = max(sup(Xexact[i])-sup(Xinner_print[0][current_iteration][i]),inf(Xinner_print[0][current_iteration][i])-inf(Xexact[i]));
-            sum += aux;
-            rel_sum += aux / (sup(Xexact[i])-inf(Xexact[i]));
-        }
-        sum = sum/sysdim;
-        rel_sum = rel_sum/sysdim;
-        outFile_meanerror_inner << t_print[current_iteration] << "\t" << sum << endl;
-        outFile_relmeanerror_inner << t_print[current_iteration] << "\t" << rel_sum << endl;
-    }
-  */
-    
     // mean over the xi of the error between over-approx and inner-approx
     sum = 0;
     rel_sum = 0;
@@ -318,9 +194,6 @@ void print_ErrorMeasures(int current_iteration, vector<AAF> inputs_save, double 
     outFile_meanerror_diff << t_print[current_iteration] << "\t" << sum << endl;
     outFile_relmeanerror_diff << t_print[current_iteration] << "\t" << rel_sum << endl;
 }
-
-
-
 
 void read_parameters(const char * params_filename, double &tau, double &t_end, int &order, char * sys_name, char *initial_condition)
 {
@@ -353,10 +226,6 @@ void read_parameters(const char * params_filename, double &tau, double &t_end, i
     cout << "****** End parameter reading ******" << endl << endl;
 }
 
-
-
-
-
 void generate_gnuplot_script()
 {
     ofstream gnuplot_script;
@@ -370,28 +239,6 @@ void generate_gnuplot_script()
         nb_lignes++;
     if (nb_lignes * nb_colonnes < sysdim)
         nb_colonnes++;
-    
-    // to screen
-/*    gnuplot_script << "set terminal aqua 0" << endl;
-    gnuplot_script << "set multiplot layout " << nb_lignes << ", " << nb_colonnes << " title \"System solutions \" font \"arial,18\""  << endl;
-    for (int i=0 ; i<sysdim ; i++) {
-        gnuplot_script << "plot 'x"<<i+1<<"outer.out' using 1:2 w lp, 'x"<<i+1<<"outer.out' using 1:3 w lp, ";
-        gnuplot_script << "'x"<<i+1<<"inner.out' using 1:2 w lp, 'x"<<i+1<<"inner.out' using 1:3 w lp" << endl;
-    }
-    gnuplot_script << "unset multiplot" << endl; */
-    
-    // to file
- /*   gnuplot_script << "set term pngcairo" << endl;
-    gnuplot_script << "set output \"solutions.png\"" << endl;
-    gnuplot_script << "set multiplot layout " << nb_lignes << ", " << nb_colonnes << " title \"System solutions \" font \"arial,18\""  << endl;
-    for (int i=0 ; i<sysdim ; i++) {
-        gnuplot_script << "plot 'x"<<i+1<<"outer.out' using 1:2 w lp, 'x"<<i+1<<"outer.out' using 1:3 w lp, ";
- //       gnuplot_script << "'x"<<i+1<<"center.out' using 1:2 w lp, 'x"<<i+1<<"center.out' using 1:3 w lp, ";
-        gnuplot_script << "'x"<<i+1<<"inner.out' using 1:2 w lp, 'x"<<i+1<<"inner.out' using 1:3 w lp" << endl;
-        
-    }
-    gnuplot_script << "unset multiplot" << endl;
-    gnuplot_script << "unset output" << endl; */
     
     // plotting indiviudually each solution to a file
     gnuplot_script << "set term pngcairo font \"Helvetica,18\"" << endl;
@@ -428,30 +275,15 @@ void generate_gnuplot_script()
             gnuplot_script << "set label at 0.1,3 LABEL3 front center" << endl;
             gnuplot_script << "set key left top" << endl;
         }
-        
-     /*   if ((uncontrolled > 0)) // && (controlled > 0))
-        {
-            gnuplot_script << "set style fill noborder"<<endl;
-            gnuplot_script << "plot 'x"<<i+1<<"outer.out' using 1:2 w l lt 1  title \"maximal outer flowpipe\", 'x"<<i+1<<"outer.out' using 1:3 w l lt 1 notitle, ";
-            //       gnuplot_script << "'x"<<i+1<<"exact.out' using 1:2 w l lt 3  dashtype 2 title \"analytical solution\", 'x"<<i+1<<"exact.out' using 1:3 w l lt 3 dashtype 2 title \"\", ";
-            gnuplot_script << "'x"<<i+1<<"inner.out' using 1:2:3 w filledcu title \"maximal inner flowpipe\", ";
-            gnuplot_script << "'x"<<i+1<<"outer_robust.out' using 1:2:3 w filledcu title \"robust outer flowpipe\", 'x"<<i+1<<"outer_robust.out' using 1:2 w l lt 2 notitle, 'x"<<i+1<<"outer_robust.out' using 1:3 w l lt 2 notitle,";
-            gnuplot_script << "'x"<<i+1<<"inner_robust.out' using 1:2:3 w filledcu title \"robust inner flowpipe\", ";
-            gnuplot_script << "'x"<<i+1<<"outer_minimal.out' using 1:2:3 w filledcu title \"minimal outer flowpipe\", 'x"<<i+1<<"outer_minimal.out' using 1:2 w l lt 2 notitle, 'x"<<i+1<<"outer_minimal.out' using 1:3 w l lt 2 notitle,";
-            gnuplot_script << "'x"<<i+1<<"inner_minimal.out' using 1:2:3 w filledcu title \"minimal inner flowpipe\", " << endl;
-            //    gnuplot_script << "'x"<<i+1<<"inner.out' using 1:2:3 w filledcu title \"maximal inner flowpipe\", 'x"<<i+1<<"inner.out' using 1:2 w l lt 2 notitle, 'x"<<i+1<<"inner.out' using 1:3 w l lt 2 notitle" << endl;
-        } */
         if ((uncontrolled > 0)) // && (controlled > 0))
         {
             gnuplot_script << "set style fill noborder"<<endl;
             gnuplot_script << "plot 'x"<<i+1<<"outer.out' using 1:2 w l lt 3 lw 2 lc rgb '#4dbeee'  title \"maximal outer flowpipe\", 'x"<<i+1<<"outer.out' using 1:3 w l lt 3 lw 2 lc rgb '#4dbeee'  notitle, ";
-            //       gnuplot_script << "'x"<<i+1<<"exact.out' using 1:2 w l lt 3  dashtype 2 title \"analytical solution\", 'x"<<i+1<<"exact.out' using 1:3 w l lt 3 dashtype 2 title \"\", ";
             gnuplot_script << "'x"<<i+1<<"inner.out' using 1:2:3 w filledcu lc rgb '#4dbeee'  title \"maximal inner flowpipe\", ";
             gnuplot_script << "'x"<<i+1<<"outer_robust.out' using 1:2 w l lt 5  lc rgb \"red\"  lw 2 title \"robust outer flowpipe\", 'x"<<i+1<<"outer_robust.out' using 1:3 w l lt 5  lc rgb \"red\"  lw 2notitle,";
             gnuplot_script << "'x"<<i+1<<"inner_robust.out' using 1:2:3 w filledcu lc rgb \"red\" title \"robust inner flowpipe\", ";
             gnuplot_script << "'x"<<i+1<<"outer_minimal.out' using 1:2 w l lt 7 lc rgb '#7e2f8e' lw 2 title \"minimal outer flowpipe\", 'x"<<i+1<<"outer_minimal.out' using 1:3 w l lt 7 lc rgb '#7e2f8e' lw 2 notitle,";
             gnuplot_script << "'x"<<i+1<<"inner_minimal.out' using 1:2:3 w filledcu lc rgb '#7e2f8e' title \"minimal inner flowpipe\" " << endl;
-            //    gnuplot_script << "'x"<<i+1<<"inner.out' using 1:2:3 w filledcu title \"maximal inner flowpipe\", 'x"<<i+1<<"inner.out' using 1:2 w l lt 2 notitle, 'x"<<i+1<<"inner.out' using 1:3 w l lt 2 notitle" << endl;
         }
         else if (controlled > 0)
         {
@@ -483,14 +315,10 @@ void generate_gnuplot_script()
         gnuplot_script << "set output \"x3x4.png\"" << endl;
         gnuplot_script << "plot 'x3x4outer.out' using 2:5 w l lt 1  title \"maximal outer flowpipe x(t)\", 'x3x4outer.out' using 3:6 w l lt 1 notitle, ";
         gnuplot_script << "'x3x4inner.out' using 2:5:6 w filledcu title \"maximal inner flowpipe x(t)\", 'x3x4inner.out' using 2:5 w l lt 2 notitle, 'x3x4inner.out' using 3:6 w l lt 2 notitle" << endl;
-     
- //       gnuplot_script << "'x3x4inner_robust.out' using 2:5:6 w filledcu title \"robust inner flowpipe x(t)\", 'x3x4inner_robust.out' using 2:5 w l lt 2 notitle, 'x3x4inner_robust.out' using 3:6 w l lt 2 notitle"<<endl;
-        
         gnuplot_script << "unset output" << endl;
     }
     
     gnuplot_script << "set term pngcairo font \"Helvetica,18\"" << endl;
-//    gnuplot_script << "set terminal png size 1280, 480 font \"Helvetica,30\"" << endl;
     gnuplot_script << "set output \"xi.png\"" << endl;
     if (nb_subdiv_init > 1)
         gnuplot_script << "set title '"<<nb_subdiv_init<<" subdivisions'" << endl;
@@ -520,35 +348,6 @@ void generate_gnuplot_script()
         gnuplot_script << "'x2inner_robust.out' using 1:2:3 w filledcu lc rgb \"red\" notitle, ";
         gnuplot_script << "'x2outer_minimal.out' using 1:2 w l lt 7 lc rgb '#7e2f8e' lw 2 notitle, 'x2outer_minimal.out' using 1:3 w l lt 7 lc rgb '#7e2f8e' lw 2 notitle,";
         gnuplot_script << "'x2inner_minimal.out' using 1:2:3 w filledcu lc rgb '#7e2f8e' notitle " << endl;
-    /*    gnuplot_script << "plot 'x1outer.out' using 1:2 w l lt 3 lw 2 lc rgb '#4dbeee'  title \"maximal outer flowpipe x(t)\", 'x1outer.out' using 1:3 w l lt 3 lw 2 lc rgb '#4dbeee'  notitle, ";
-        gnuplot_script << "'x1inner.out' using 1:2:3 w filledcu lc rgb '#4dbeee'  title \"maximal inner flowpipe x(t)\", ";
-        gnuplot_script << "'x1outer_robust.out' using 1:2 w l lt 5  lc rgb \"red\"  lw 2 title \"robust outer flowpipe x(t)\", 'x1outer_robust.out' using 1:3 w l lt 5  lc rgb \"red\"  lw 2 notitle,";
-        gnuplot_script << "'x1inner_robust.out' using 1:2:3 w filledcu lc rgb \"red\" title \"robust inner flowpipe x(t)\", ";
-        gnuplot_script << "'x1outer_minimal.out' using 1:2 w l lt 7 lc rgb '#7e2f8e' lw 2 title \"minimal outer flowpipe x(t)\", 'x1outer_minimal.out' using 1:3 w l lt 7 lc rgb '#7e2f8e' lw 2 notitle,";
-        gnuplot_script << "'x1inner_minimal.out' using 1:2:3 w filledcu lc rgb '#7e2f8e' title \"minimal inner flowpipe x(t)\", ";
-        
-        gnuplot_script << " 'x2outer.out' using 1:2 w l lt 3 lw 2 lc rgb '#4dbeee'  title \"maximal outer flowpipe v(t)\", 'x2outer.out' using 1:3 w l lt 3 lw 2 lc rgb '#4dbeee'  notitle, ";
-        gnuplot_script << "'x2inner.out' using 1:2:3 w filledcu lc rgb '#4dbeee'  title \"maximal inner flowpipe v(t)\", ";
-        gnuplot_script << "'x2outer_robust.out' using 1:2 w l lt 5  lc rgb \"red\"  lw 2 title \"robust outer flowpipe v(t)\", 'x2outer_robust.out' using 1:3 w l lt 5  lc rgb \"red\"  lw 2 notitle,";
-        gnuplot_script << "'x2inner_robust.out' using 1:2:3 w filledcu lc rgb \"red\" title \"robust inner flowpipe v(t)\", ";
-        gnuplot_script << "'x2outer_minimal.out' using 1:2 w l lt 7 lc rgb '#7e2f8e' lw 2 title \"minimal outer flowpipe v(t)\", 'x2outer_minimal.out' using 1:3 w l lt 7 lc rgb '#7e2f8e' lw 2 notitle,";
-        gnuplot_script << "'x2inner_minimal.out' using 1:2:3 w filledcu lc rgb '#7e2f8e' title \"minimal inner flowpipe v(t)\" " << endl;
-     */
-        /*
-        gnuplot_script << "plot 'x1outer.out' using 1:2 w l lt 1  title \"maximal outer flowpipe x(t)\", 'x1outer.out' using 1:3 w l lt 1 notitle, ";
-        gnuplot_script << "'x1inner.out' using 1:2:3 w filledcu title \"maximal inner flowpipe x(t)\", 'x1inner.out' using 1:2 w l lt 2 notitle, 'x1inner.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x1outer_robust.out' using 1:2:3 w filledcu title \"robust outer flowpipe x(t)\", 'x1outer_robust.out' using 1:2 w l lt 2 notitle, 'x1outer_robust.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x1inner_robust.out' using 1:2:3 w filledcu title \"robust inner flowpipe x(t)\", 'x1inner_robust.out' using 1:2 w l lt 2 notitle, 'x1inner_robust.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x1outer_minimal.out' using 1:2:3 w filledcu title \"minimal outer flowpipe x(t)\", 'x1outer_minimal.out' using 1:2 w l lt 2 notitle, 'x1outer_minimal.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x1inner_minimal.out' using 1:2:3 w filledcu title \"minimal inner flowpipe x(t)\", 'x1inner_minimal.out' using 1:2 w l lt 2 notitle, 'x1inner_minimal.out' using 1:3 w l lt 2 notitle,";
-        
-        gnuplot_script << "'x2outer.out' using 1:2 w l lt 1  title \"maximal outer flowpipe v(t)\", 'x2outer.out' using 1:3 w l lt 1 notitle, ";
-        gnuplot_script << "'x2inner.out' using 1:2:3 w filledcu title \"maximal inner flowpipe v(t)\", 'x2inner.out' using 1:2 w l lt 2 notitle, 'x2inner.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x2outer_robust.out' using 1:2:3 w filledcu title \"robust outer flowpipe v(t)\", 'x2outer_robust.out' using 1:2 w l lt 2 notitle, 'x2outer_robust.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x2inner_robust.out' using 1:2:3 w filledcu title \"robust inner flowpipe v(t)\", 'x2inner_robust.out' using 1:2 w l lt 2 notitle, 'x2inner_robust.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x2outer_minimal.out' using 1:2:3 w filledcu title \"minimal outer flowpipe v(t)\", 'x2outer_minimal.out' using 1:2 w l lt 2 notitle, 'x2outer_minimal.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x2inner_minimal.out' using 1:2:3 w filledcu  title \"minimal inner flowpipe v(t)\", 'x2inner_minimal.out' using 1:2 w l lt 2 notitle, 'x2inner_minimal.out' using 1:3 w l lt 2 notitle " << endl;
-         */
     }
     else if (controlled > 0)
     {
@@ -563,27 +362,6 @@ void generate_gnuplot_script()
         gnuplot_script << "'x2inner.out' using 1:2:3 w filledcu lc rgb '#4dbeee'  notitle, ";
         gnuplot_script << "'x2outer_minimal.out' using 1:2 w l lt 7 lc rgb '#7e2f8e' lw 2 notitle, 'x2outer_minimal.out' using 1:3 w l lt 7 lc rgb '#7e2f8e' lw 2 notitle,";
         gnuplot_script << "'x2inner_minimal.out' using 1:2:3 w filledcu lc rgb '#7e2f8e' notitle " << endl;
-     /*
-        gnuplot_script << "plot 'x1outer.out' using 1:2 w l lt 3 lw 2 lc rgb '#4dbeee'  title \"maximal outer flowpipe x(t)\", 'x1outer.out' using 1:3 w l lt 3 lw 2 lc rgb '#4dbeee'  notitle, ";
-        gnuplot_script << "'x1inner.out' using 1:2:3 w filledcu lc rgb '#4dbeee'  title \"maximal inner flowpipe x(t)\", ";
-        gnuplot_script << "'x1outer_minimal.out' using 1:2 w l lt 7 lc rgb '#7e2f8e' lw 2 title \"minimal outer flowpipe x(t)\", 'x1outer_minimal.out' using 1:3 w l lt 7 lc rgb '#7e2f8e' lw 2 notitle,";
-        gnuplot_script << "'x1inner_minimal.out' using 1:2:3 w filledcu lc rgb '#7e2f8e' title \"minimal inner flowpipe x(t)\", ";
-        
-        gnuplot_script << " 'x2outer.out' using 1:2 w l lt 3 lw 2 lc rgb '#4dbeee'  title \"maximal outer flowpipe v(t)\", 'x2outer.out' using 1:3 w l lt 3 lw 2 lc rgb '#4dbeee'  notitle, ";
-        gnuplot_script << "'x2inner.out' using 1:2:3 w filledcu lc rgb '#4dbeee'  title \"maximal inner flowpipe v(t)\", ";
-        gnuplot_script << "'x2outer_minimal.out' using 1:2 w l lt 7 lc rgb '#7e2f8e' lw 2 title \"minimal outer flowpipe v(t)\", 'x2outer_minimal.out' using 1:3 w l lt 7 lc rgb '#7e2f8e' lw 2 notitle,";
-        gnuplot_script << "'x2inner_minimal.out' using 1:2:3 w filledcu lc rgb '#7e2f8e' title \"minimal inner flowpipe v(t)\" " << endl;
-      */
-        
-       /* gnuplot_script << "plot 'x1outer.out' using 1:2 w l lt 1  title \"maximal outer flowpipe x(t)\", 'x1outer.out' using 1:3 w l lt 1 notitle, ";
-        gnuplot_script << "'x1inner.out' using 1:2:3 w filledcu title \"maximal inner flowpipe x(t)\", 'x1inner.out' using 1:2 w l lt 2 notitle, 'x1inner.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x1outer_minimal.out' using 1:2:3 w filledcu title \"minimal outer flowpipe x(t)\", 'x1outer_minimal.out' using 1:2 w l lt 2 notitle, 'x1outer_minimal.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x1inner_minimal.out' using 1:2:3 w filledcu title \"minimal inner flowpipe x(t)\", 'x1inner_minimal.out' using 1:2 w l lt 2 notitle, 'x1inner_minimal.out' using 1:3 w l lt 2 notitle,";
-        
-        gnuplot_script << "'x2inner.out' using 1:2:3 w filledcu title \"maximal inner flowpipe v(t)\", 'x2inner.out' using 1:2 w l lt 2 notitle, 'x2inner.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x2outer_minimal.out' using 1:2:3 w filledcu title \"minimal outer flowpipe v(t)\", 'x2outer_minimal.out' using 1:2 w l lt 2 notitle, 'x2outer_minimal.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x2inner_minimal.out' using 1:2:3 w filledcu title \"minimal inner flowpipe v(t)\", 'x2inner_minimal.out' using 1:2 w l lt 2 notitle, 'x2inner_minimal.out' using 1:3 w l lt 2 notitle,";
-        gnuplot_script << "'x2outer.out' using 1:2 w l lt 1  title \"maximal outer flowpipe v(t)\", 'x2outer.out' using 1:3 w l lt 1 notitle " << endl; */
     }
     else // only initial conditions => only maximal flowpipes
     {
@@ -626,14 +404,9 @@ void generate_gnuplot_script()
     gnuplot_script << "plot 'relmeanerror_outer.out' w l lt 1 title \"outer-approx error\", 'relmeanerror_inner.out' w l lt 1 dashtype 2 title \"inner-approx error\", 'relmeanerror_diff.out' w l lt 2 title \"max distance between inner and outer-approx\"" << endl;
     gnuplot_script << "unset output" << endl;
     
-    
-    // gnuplot_script << "set term wxt" << endl;  // vue par defaut
-    // gnuplot_script << "set term aqua // pour avoir des chiffres plus gros sur les axes pour les papiers..." << endl;
-    
     gnuplot_script << "set terminal aqua" << endl;
     
     gnuplot_script.close();
-//    system("cd output; gnuplot -p 'gnuplot_script.gp'"); // marche plus quand je l'appelle de mon programme alors que ca a eu fonctionné ???
     
     cout << "......" << endl;
     cout << "Result files are in the output directory" << endl;
@@ -644,16 +417,14 @@ void generate_gnuplot_script()
 
 
 
-void open_outputfiles()
-{
-    system("mv output output_sauv");
+void open_outputfiles() {
     system("rm -r output");
     system("mkdir output");
     
     outFile_outer = vector<ofstream>(sysdim);   // output outer-approximated range for each variable of the system
     outFile_outer_robust = vector<ofstream>(sysdim);
     outFile_outer_minimal = vector<ofstream>(sysdim);
-    outFile_inner = vector<ofstream>(sysdim); // vector<ofstream> outFile_inner(sysdim);   // output inner-approximated range for each variable of the system
+    outFile_inner = vector<ofstream>(sysdim); // output inner-approximated range for each variable of the system
     outFile_inner_robust = vector<ofstream>(sysdim);
     outFile_inner_minimal = vector<ofstream>(sysdim);
     outFile_center  = vector<ofstream>(sysdim);
@@ -683,8 +454,7 @@ void open_outputfiles()
         file_name << "output/x" << i+1 << "inner_minimal.out";
         outFile_inner_minimal[i].open(file_name.str().c_str());
     }
-    
-    
+
     outFile_width_ratio.open("output/width_ratio.out");
     outFile_meanerror_outer.open("output/meanerror_outer.out");
     outFile_meanerror_inner.open("output/meanerror_inner.out");
@@ -720,19 +490,14 @@ void print_initstats(vector<AAF> &x)
     for (int i=0 ; i<sysdim ; i++)
         cout << "x0[" << i <<"]=" << mid(x[i].convert_int()) << "\t";
     cout << endl;
-    
-    
 }
-
-
-
 
 // print after the end of the analysis
 void print_finalstats(clock_t begin)
 {
     clock_t end = clock();
     // double end_time = getTime ( );
-    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC; //getTotalTime (start_time , end_time );
+    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
     cout << "elpased time (sec) =" << elapsed_secs << endl;
     
     
