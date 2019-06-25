@@ -1,4 +1,7 @@
-docs/
+*/*.o
 */main
-*.o
 */.idea
+*/make-build-debug/
+*/output/
+*/output_sauv/
+docs/
