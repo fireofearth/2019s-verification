@@ -24,11 +24,8 @@ using namespace std;
 
 int sysdim; // dimension of system of ODE/DDE
 int jacdim;  //  Jacobian will be dimension sysdim * jacdim
-int sysdim_params;
-//int sysdim_jacparams;
 
 // parameters of the system of the ODEs
-vector<AAF> params;  // params of the ODE (nondeterministic disturbances)
 vector<AAF> inputs; // uncertain inputs and parameters : some will be used in initial condition, some as uncertain parameters
 vector<AAF> center_inputs;
 vector<interval> eps;
@@ -61,24 +58,25 @@ void set_initialconditions(vector<AAF> &x, vector<AAF> &xcenter, vector<vector<A
 }
 
 // for ODEs and DDEs: define bounds for parameters and inputs, value of delay d0 if any, and parameters of integration (timestep, order of TM)
-void init_system(double &t_begin, double &t_end, double &tau, double &d0, int &nb_subdiv, int &order /*, vector<interval> &ix*/) {
+void init_system(OdeFunc &odef, double &t_begin, double &t_end, double &tau, double &d0, int &nb_subdiv, int &order) {
 
     /**
      * Colin: problem dimensions
      */
-    sysdim = 2;
+    //struct OdeInt ode_int = odef.get_initial_variables()
+    sysdim = 2; //ode_int.sysdim;
     jacdim = 2;
-    sysdim_params = 2;
-    // nb of initial subdivisions of the input range
-    nb_subdiv_init = 1;
-    /***/
+    nb_subdiv_init = 1; // nb of initial subdivisions of the input range
+    t_begin = 0;
+    tau = 0.05;
+    t_end = 10.;
+    order = 4;
+    inputs = vector<AAF>(jacdim);
+    inputs[0] = interval(0.9,1);
+    inputs[1] = interval(0,0.1);
 
     interval temp;
     int nb_points;
-    
-    inputs = vector<AAF>(jacdim);
-    if (sysdim_params > 0)
-        params = vector<AAF>(sysdim_params);
     
     uncontrolled = 0;
     controlled = 0;
@@ -92,29 +90,6 @@ void init_system(double &t_begin, double &t_end, double &tau, double &d0, int &n
         is_initialcondition[i] = false; // by definition, initial conditions are controlled
     }
 
-    /**
-     * Colin: fixed runtime arguments
-     * Runs the HSCC 2014 Brusselator
-     */
-    t_begin = 0;
-    tau = 0.05;
-    t_end = 10.;
-    order = 4;
-    /***/
-
-    /**
-     * Colin: for initial inputs
-     * x1(0), x2(0)
-     */
-    inputs[0] = interval(0.9,1);
-    inputs[1] = interval(0,0.1);
-
-    /**
-     *
-     *
-     */
-    params[0] = 1;
-    params[1] = 1.5;
     nb_points = (t_end-t_begin)/tau+1;
     
     // common to EDO and DDE

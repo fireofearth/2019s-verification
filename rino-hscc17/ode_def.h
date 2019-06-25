@@ -10,6 +10,7 @@
 #ifndef ODE_DEF_H
 #define ODE_DEF_H
 
+#include <exception>
 #include "filib_interval.h"
 #include "tadiff.h" 
 #include "fadiff.h"
@@ -19,12 +20,12 @@ using namespace std;
 
 #define innerapprox 1
 
+enum Problem {BRUSSELATOR, VANDERPOLL};
+
 // dimension of the system of ODE/DDE to analyze:
 extern int sysdim;
 // dimension of uncertain input
 extern int jacdim; // Jacobian will be dimension sysdim * jacdim
-extern int sysdim_params;  // dimension of the vector of parameters params - Boost
-extern vector<AAF> params;      // params of the ODE (nondeterministic disturbances)
 extern vector<AAF> inputs;   // uncertain inputs and parameters : some will be used in initial condition, some as uncertain parameters
 extern vector<AAF> center_inputs;
 extern vector<interval> eps;
@@ -46,29 +47,65 @@ extern vector<bool> is_initialcondition; // for each input, initial condition or
 extern int variable;  // number of non constant parameters
 extern vector<bool> is_variable; // for each parameter, constant or variable
 
+struct OdeInit {
+    int sysdim;
+    int jacdim;
+    int nb_subdiv_init;
+    double tau;
+    double t_begin;
+    double t_end;
+    int order;
+    vector<AAF> inputs;
+};
+
+class OdeFunc {
+private:
+    Problem p;
+public:
+    OdeFunc(Problem p) {
+        this-> p = p;
+    }
+
+    struct OdeInit get_initial_variables() {
+        switch(this->p) {
+            case BRUSSELATOR:
+                return { 2, 2, 1, 0.05, 0, 10., 4,
+                         { interval(0.9,1), interval(0,0.1) }
+                };
+            case VANDERPOLL:
+                throw logic_error("incomplete functionality");
+                break;
+            default:
+                throw logic_error("problem is not specified");
+        }
+    }
+
+    template <class C>
+    void operator()(vector<C> &yp, vector<C> y) {
+        /**
+         * Colin: This is hardcoded to be the Brusselator
+         */
+        switch(this->p) {
+            case BRUSSELATOR:
+                yp[0] = 1 - (1.5 + 1) * y[0] + y[0] * y[0] * y[1];
+                yp[1] = 1.5 * y[0] - y[0] * y[0] * y[1];
+                break;
+            case VANDERPOLL:
+                throw logic_error("incomplete functionality");
+                break;
+            default:
+                throw logic_error("problem is not specified");
+        }
+    }
+};
+
 // for ODEs : initialize the state variable (and center for inner-approximation)
 void set_initialconditions(vector<AAF> &x, vector<AAF> &xcenter, vector<vector<AAF>> &J);
 
-
 // for ODEs and DDEs: define bounds for parameters and inputs, value of delay d0 if any, and parameters of integration (timestep, order of TM)
-void init_system(double &t_begin, double &t_end, double &tau, double &d0, int &nb_subdiv, int &order);
+void init_system(OdeFunc &odef, double &t_begin, double &t_end, double &tau, double &d0, int &nb_subdiv, int &order);
 
 // specific to subdivisions
 void init_subdiv(int current_subdiv, vector<AAF> inputs_save, int param_to_subdivide);
-
-
-// define here  your ODE system yp = \dot y = f(y)
-class OdeFunc {
-    public:
-        template <class C>
-        void operator()(vector<C> &yp, vector<C> y) {
-
-            /**
-             * Colin: This is hardcoded to be the Brusselator
-             */
-            yp[0] = 1 - (params[1]+1)*y[0] + params[0]*y[0]*y[0]*y[1];
-            yp[1] = params[1]*y[0] - params[0]*y[0]*y[0]*y[1];
-    }
-};
 
 #endif

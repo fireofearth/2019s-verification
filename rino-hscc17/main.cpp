@@ -69,7 +69,9 @@ int main(int argc, char* argv[]) {
 
     clock_t begin = clock();
 
-    init_system(t_begin,t_end,tau,d0,nb_subdiv,order);
+    OdeFunc odef = OdeFunc(BRUSSELATOR);
+
+    init_system(odef, t_begin, t_end, tau, d0, nb_subdiv, order);
 
     open_outputfiles();
     
@@ -77,7 +79,6 @@ int main(int argc, char* argv[]) {
     for (int i=0 ; i<jacdim; i++)
         inputs_save[i] = inputs[i];
 
-    OdeFunc obf;    // contains the differential system - defined in ode_def.h
     vector<vector<AAF>> J(sysdim, vector<AAF>(jacdim));
     vector<AAF> x(sysdim);
     vector<AAF> xcenter(sysdim);
@@ -96,7 +97,7 @@ int main(int argc, char* argv[]) {
         tn = t_begin;
         print_initstats(inputs);
 
-        HybridStep_ode cur_step = init_ode(obf,xcenter,x,J,tn,tau,order);
+        HybridStep_ode cur_step = init_ode(odef,xcenter,x,J,tn,tau,order);
 
         while (cur_step.tn < t_end) {
             // build Taylor model for Value and Jacobian and deduce guards for each active mode
