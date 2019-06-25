@@ -1,0 +1,6 @@
+*.o
+main
+.idea
+make-build-debug/
+output/
+output_sauv/
