@@ -756,20 +756,19 @@ void HybridStep_ode::TM_evalandprint_solutionstep(vector<interval> &eps, double 
             Xouter[i] = TMcenter.xp1[i].convert_int();
         }
         print_solutionstep(Xouter,Xouter,Xouter,Xouter,Xouter,Xouter,Xouter);
-    }
-    else {
-    // deduce inner-approx by mean-value thm
+    } else {
+        // deduce inner-approx by mean-value thm
         for (int i = 0 ; i<sysdim ; i++) {
             TMcenter.xp1[i].compact();  // compact the affine form: remove zero coefficients (there are some ...)
             TMcenter.xp1[i].sumup(tol_noise); // group small terms
             Xcenter[i] = TMcenter.xp1[i].convert_int();
         }
         InnerOuter(Xinner,Xinner_robust,Xinner_minimal,Xouter,Xouter_robust,Xouter_minimal,TMcenter.xp1,TMJac.Jp1,eps);
-      //  InnerOuter(Xinner,Xouter,TMcenter.xp1,TMJac.Jp1,eps);
+        //  InnerOuter(Xinner,Xouter,TMcenter.xp1,TMJac.Jp1,eps);
         intersectViVi(Xouter,TMJac.xp1);
     
-    print_solutionstep(Xouter,Xouter_robust,Xouter_minimal,Xinner,Xinner_robust,Xinner_minimal,Xcenter);
-    // print_solutionstep_ode(Xouter,Xinner,Xcenter,tnp1);
+        print_solutionstep(Xouter,Xouter_robust,Xouter_minimal,Xinner,Xinner_robust,Xinner_minimal,Xcenter);
+        // print_solutionstep_ode(Xouter,Xinner,Xcenter,tnp1);
     }
 }
 

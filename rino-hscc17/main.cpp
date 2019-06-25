@@ -20,7 +20,6 @@
 #include "matrix.h"
 #include "inner.h"
 #include "ode_integr.h"
-#include "dde_integr.h"
 #include <iostream>
 #include <ostream>
 #include <fstream>

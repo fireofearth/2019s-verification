@@ -1,7 +1,8 @@
 */*.o
 */main
 */.idea
-*/make-build-debug/
+*/cmake-build-debug/
 */output/
 */output_sauv/
 docs/
+*/CMakeLists.txt

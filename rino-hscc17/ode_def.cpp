@@ -168,66 +168,6 @@ void init_subdiv(int current_subdiv, vector<AAF> inputs_save, int param_to_subdi
     
 }
 
-
-// initial condition on [t0,t0+d0] given as x = g(t)
-vector <T<AAF>> Initfunc(const  T<AAF> &t, vector<AAF> &beta)
-{
-    vector<T<AAF>> res(sysdim);
-
-    // Colin: DDE only, should have no impact
-//    // by default
-//    for (int i=0 ; i<sysdim; i++)
-//    res[i] = beta[i];
-//
-//    if (syschoice == 1)  // running example
-//        res[0] = (1+beta[0]*t)*(1+beta[0]*t);  // ix[0] = beta
-//    else if (syschoice == 2) //  example 5.15
-//    {
-//        res[0] = beta[0]*exp(t);
-//        res[1] = beta[1]*(1-exp(-1));
-//    }
-//    else if (syschoice == 4) // Szczelina_1 2014
-//    {
-//        res[0] = beta[0]*sin(M_PI*t/2.0);
-//    }
-//    else if (syschoice == 5) // Szczelina_2 2014
-//    {
-//        res[0] = beta[0]*sin(M_PI*t/2.0);
-//    }
-    
-    return res;
-}
-
-
-
-// initial condition on [-d0,0] given as x = g(t)
-vector <T<F<AAF>>> Initfunc(const  T<F<AAF>> &t, vector<T<F<AAF>>> &beta)
-{
-    vector<T<F<AAF>>> res(sysdim);
-
-    // Colin: DDE only, should have no impact
-//    // by default
-//    for (int i=0 ; i<sysdim; i++)
-//    res[i] = beta[i];
-//
-//    if (syschoice == 1)  // running example
-//        res[0] = (1+beta[0]*t)*(1+beta[0]*t);  // ix[0] = beta
-//    else if (syschoice == 2) //  example 5.15
-//    {
-//        res[0] = beta[0]*exp(t);
-//        res[1] = beta[1]*(1-exp(-1));
-//    }
-//    else if (syschoice == 4) // Szczelina_1 2014
-//    {
-//        res[0] = beta[0]*sin(M_PI*t/2.0);
-//    }
-//    else if (syschoice == 5) // Szczelina_2 2014
-//    {
-//        res[0] = beta[0]*sin(M_PI*t/2.0);
-//    }
-    return res;
-}
-
 // analytical solution if any (for comparison purpose)
 vector <interval> AnalyticalSol(double t, vector<AAF> &beta, double d0)
 {
