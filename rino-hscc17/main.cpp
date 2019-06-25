@@ -51,9 +51,6 @@ void open_outputfiles();
 void print_finalstats(clock_t begin);
 void generate_gnuplot_script();
 
-int systype; // 0 is ODE, 1 is DDE
-int syschoice; // choice of system to analyze
-
 void print_initstats(vector<AAF> &x);
 
 void print_ErrorMeasures(int current_iteration, vector<AAF> inputs_save, double d0);
@@ -69,15 +66,6 @@ int main(int argc, char* argv[]) {
     
     double d0; // = 1;   // delay in DDE
     int nb_subdiv; // = 10;   // number of Taylor models on [0,d0]
-
-    /**
-     * Colin: fixed runtime arguments
-     * Runs the HSCC 2014 Brusselator
-     *
-     */
-    systype = 0; // EDO = 0, DDE = 1
-    syschoice = 2;
-    /***/
 
     clock_t begin = clock();
 
@@ -247,33 +235,13 @@ void generate_gnuplot_script()
             gnuplot_script << "set output \"x.png\"" << endl;
         else
             gnuplot_script << "set output \"x"<<i+1<<".png\"" << endl;
+
         if (nb_subdiv_init > 1)
             gnuplot_script << "set title '"<<nb_subdiv_init<<" subdivisions'" << endl;
         gnuplot_script << "set xlabel 't (seconds)'" << endl;
-        if ((systype == 0) && (syschoice == 4) && (i==3)) // ballistic example
-        {
-            gnuplot_script << "set ylabel 'y(t)'" << endl;
-             gnuplot_script << "set arrow 2 from 0,0 to 2,0 nohead  front" << endl;  // black axis
-            gnuplot_script << "set object 1 poly from 0,6 to 2,6 to 2,3 to 0,5 to 0,6 fs solid fc rgb \"red\"" << endl;  // red box to avoid
-            gnuplot_script << "set key left bottom" << endl;
-        //    gnuplot_script << "set object 1 rect from 0,5 to 2,3 fc rgb \"red\"" << endl;  // boite rouge a eviter
-        }
-        else
-            gnuplot_script << "set ylabel 'x(t)'" << endl;
-        if ((systype == 0) && (syschoice == 4) && (i==3)) // ballistic example, y coordinate
-        {
-            gnuplot_script << "set yrange [0:6]" << endl;
-            gnuplot_script << "set object 2 rect from 0.75,3 to 1.,4 fc rgb \"green\" front" << endl;  // green box to reach
-            gnuplot_script << "set object 1 poly from 0.,2 to 1.4,4.5 to 1.4,5.5 to 0,4 to 0,2 fs solid  fc rgb \"cyan\"" << endl;  // green box to reach
-            gnuplot_script << "set object 3 rect from 0.4,0. to 0.6,2 fc rgb \"red\"" << endl;  // red box to avoid
-            gnuplot_script << "LABEL1 = \"U\"" << endl;
-            gnuplot_script << "set label at 0.5,1.5 LABEL1 front center" << endl;
-            gnuplot_script << "LABEL2 = \"T1\"" << endl;
-            gnuplot_script << "set label at 0.9,3.5 LABEL2 front center" << endl;
-            gnuplot_script << "LABEL3 = \"T2\"" << endl;
-            gnuplot_script << "set label at 0.1,3 LABEL3 front center" << endl;
-            gnuplot_script << "set key left top" << endl;
-        }
+
+        gnuplot_script << "set ylabel 'x(t)'" << endl;
+
         if ((uncontrolled > 0)) // && (controlled > 0))
         {
             gnuplot_script << "set style fill noborder"<<endl;
@@ -302,18 +270,6 @@ void generate_gnuplot_script()
             gnuplot_script << "'x"<<i+1<<"inner.out' using 1:2:3 w filledcu lc rgb '#4dbeee'  title \"maximal inner flowpipe\" " << endl;
             
         }
-        
-        
-        gnuplot_script << "unset output" << endl;
-    }
-    
-    if ((systype == 0) && (syschoice == 4)) // ballistic example
-    {
-        system("cd output; paste x3inner.out x4inner.out > x3x4inner.out; paste x3inner_robust.out x4inner_robust.out > x3x4inner_robust.out; paste x3outer.out x4outer.out > x3x4outer.out; cd ..");
-        gnuplot_script << "set term pngcairo font \"Helvetica,20\"" << endl;
-        gnuplot_script << "set output \"x3x4.png\"" << endl;
-        gnuplot_script << "plot 'x3x4outer.out' using 2:5 w l lt 1  title \"maximal outer flowpipe x(t)\", 'x3x4outer.out' using 3:6 w l lt 1 notitle, ";
-        gnuplot_script << "'x3x4inner.out' using 2:5:6 w filledcu title \"maximal inner flowpipe x(t)\", 'x3x4inner.out' using 2:5 w l lt 2 notitle, 'x3x4inner.out' using 3:6 w l lt 2 notitle" << endl;
         gnuplot_script << "unset output" << endl;
     }
     
@@ -321,13 +277,7 @@ void generate_gnuplot_script()
     gnuplot_script << "set output \"xi.png\"" << endl;
     if (nb_subdiv_init > 1)
         gnuplot_script << "set title '"<<nb_subdiv_init<<" subdivisions'" << endl;
-    if (syschoice == 6 || syschoice == 7)
-    {
-        gnuplot_script << "set xrange [0:5]" << endl;
-        gnuplot_script << "set yrange [0:1]" << endl;
-        gnuplot_script << "set ylabel 'x(t), v(t)'" << endl;
-        gnuplot_script << "set key right center" << endl;
-    }
+
     gnuplot_script << "set xlabel 't (seconds)'" << endl;
     
     if (uncontrolled > 0)

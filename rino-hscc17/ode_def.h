@@ -19,9 +19,6 @@ using namespace std;
 
 #define innerapprox 1
 
-extern int systype;    // systype = 0 (ODE) or 1 (DDE) -- initialized in main.cpp / command line
-extern int syschoice;  // to choose among the predefined systems of ODE or DDE -- initialized in main.cpp / command line
-
 // dimension of the system of ODE/DDE to analyze:
 extern int sysdim;
 // dimension of uncertain input
@@ -35,7 +32,8 @@ extern vector<interval> eps;
 // for subdivisions of the initial domain to refine precision
 extern int nb_subdiv_init; // number of subdivisiions
 extern double recovering; // percentage of recovering between subdivisions
-extern vector<vector<vector<interval>>> Xouter_print, Xouter_robust_print, Xouter_minimal_print, Xinner_print, Xinner_robust_print, Xinner_minimal_print, Xexact_print; // store results of subdivision
+extern vector<vector<vector<interval>>> Xouter_print, Xouter_robust_print, Xouter_minimal_print, Xinner_print,
+    Xinner_robust_print, Xinner_minimal_print, Xexact_print; // store results of subdivision
 extern vector<double> t_print; // times where results are stored
 extern int current_subdiv;
 extern int current_iteration;
@@ -51,20 +49,12 @@ extern vector<bool> is_variable; // for each parameter, constant or variable
 // for ODEs : initialize the state variable (and center for inner-approximation)
 void set_initialconditions(vector<AAF> &x, vector<AAF> &xcenter, vector<vector<AAF>> &J);
 
-// for DDEs : functions that initialize the DDE on first time period
-vector<T<AAF>> Initfunc(const T<AAF>& t, vector<AAF> &beta);
-vector <T<F<AAF>>> Initfunc(const  T<F<AAF>> &t, vector<T<F<AAF>>> &beta);
-
-// defining analytical solution if any for comparison
-vector <interval> AnalyticalSol(double t, vector<AAF> &beta, double d0);
-
 
 // for ODEs and DDEs: define bounds for parameters and inputs, value of delay d0 if any, and parameters of integration (timestep, order of TM)
 void init_system(double &t_begin, double &t_end, double &tau, double &d0, int &nb_subdiv, int &order);
 
 // specific to subdivisions
 void init_subdiv(int current_subdiv, vector<AAF> inputs_save, int param_to_subdivide);
-
 
 
 // define here  your ODE system yp = \dot y = f(y)
@@ -74,9 +64,7 @@ class OdeFunc {
         void operator()(vector<C> &yp, vector<C> y) {
 
             /**
-             *
-             * Colin This is hardcoded to be the Brusselator
-             * Where is yp stored?
+             * Colin: This is hardcoded to be the Brusselator
              */
             yp[0] = 1 - (params[1]+1)*y[0] + params[0]*y[0]*y[0]*y[1];
             yp[1] = params[1]*y[0] - params[0]*y[0]*y[0]*y[1];
