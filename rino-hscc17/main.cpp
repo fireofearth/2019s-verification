@@ -66,10 +66,27 @@ int main(int argc, char* argv[]) {
     
     double d0; // = 1;   // delay in DDE
     int nb_subdiv; // = 10;   // number of Taylor models on [0,d0]
+    OdeFunc odef;
+
+    if (argc == 2) {
+        int syschoice = atoi(argv[1]);
+        odef = OdeFunc(static_cast<Problem>(syschoice));
+    }
+    else {
+        cout << "choose number...\n";
+        return 0;
+    }
 
     clock_t begin = clock();
 
-    OdeFunc odef = OdeFunc(BRUSSELATOR);
+    //OdeFunc odef = OdeFunc(BRUSSELATOR);
+    //OdeFunc odef = OdeFunc(VANDERPOLL);
+    //OdeFunc odef = OdeFunc(CIRCLE);
+    //OdeFunc odef = OdeFunc(BOX);
+    //OdeFunc odef = OdeFunc(LORENZATTR);
+    //OdeFunc odef = OdeFunc(BALLISTIC);
+    //OdeFunc odef = OdeFunc(LOTKAVOLTERRA);
+    //OdeFunc odef = OdeFunc(FITHUGHNAGUMO);
 
     init_system(odef, t_begin, t_end, tau, d0, nb_subdiv, order);
 
@@ -257,7 +274,6 @@ void generate_gnuplot_script()
         {
             gnuplot_script << "set style fill noborder"<<endl;
             gnuplot_script << "plot 'x"<<i+1<<"outer.out' using 1:2 w l lt 3 lw 2 lc rgb '#4dbeee'  title \"maximal outer flowpipe\", 'x"<<i+1<<"outer.out' using 1:3 w l lt 3 lw 2 lc rgb '#4dbeee'  notitle, ";
-            //       gnuplot_script << "'x"<<i+1<<"exact.out' using 1:2 w l lt 3  dashtype 2 title \"analytical solution\", 'x"<<i+1<<"exact.out' using 1:3 w l lt 3 dashtype 2 title \"\", ";
             gnuplot_script << "'x"<<i+1<<"inner.out' using 1:2:3 w filledcu lc rgb '#4dbeee'  title \"maximal inner flowpipe\", ";
             gnuplot_script << "'x"<<i+1<<"outer_minimal.out' using 1:2 w l lt 7 lc rgb '#7e2f8e' lw 2 title \"minimal outer flowpipe\", 'x"<<i+1<<"outer_minimal.out' using 1:3 w l lt 7 lc rgb '#7e2f8e' lw 2 notitle,";
             gnuplot_script << "'x"<<i+1<<"inner_minimal.out' using 1:2:3 w filledcu lc rgb '#7e2f8e' title \"minimal inner flowpipe\" " << endl;
@@ -267,7 +283,6 @@ void generate_gnuplot_script()
         {
             gnuplot_script << "set style fill noborder"<<endl;
             gnuplot_script << "plot 'x"<<i+1<<"outer.out' using 1:2 w l lt 3 lw 2 lc rgb '#4dbeee'  title \"maximal outer flowpipe\", 'x"<<i+1<<"outer.out' using 1:3 w l lt 3 lw 2 lc rgb '#4dbeee'  notitle, ";
-            //       gnuplot_script << "'x"<<i+1<<"exact.out' using 1:2 w l lt 3  dashtype 2 title \"analytical solution\", 'x"<<i+1<<"exact.out' using 1:3 w l lt 3 dashtype 2 title \"\", ";
             gnuplot_script << "'x"<<i+1<<"inner.out' using 1:2:3 w filledcu lc rgb '#4dbeee'  title \"maximal inner flowpipe\" " << endl;
             
         }

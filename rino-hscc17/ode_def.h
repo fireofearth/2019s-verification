@@ -20,7 +20,7 @@ using namespace std;
 
 #define innerapprox 1
 
-enum Problem {BRUSSELATOR, VANDERPOLL};
+enum Problem {NN, BRUSSELATOR, VANDERPOLL, CIRCLE, BOX, LORENZATTR, BALLISTIC, LOTKAVOLTERRA, FITHUGHNAGUMO};
 
 // dimension of the system of ODE/DDE to analyze:
 extern int sysdim;
@@ -66,15 +66,47 @@ public:
         this-> p = p;
     }
 
+    OdeFunc() {
+        this->p = NN;
+    }
+
     struct OdeInit get_initial_variables() {
+        /**
+         * Colin: problem specifications to initialize
+         */
         switch(this->p) {
             case BRUSSELATOR:
                 return { 2, 2, 1, 0.05, 0, 10., 4,
-                         { interval(0.9,1), interval(0,0.1) }
+                         { interval(0.9, 1), interval(0, 0.1) }
                 };
             case VANDERPOLL:
-                throw logic_error("incomplete functionality");
-                break;
+                return { 2, 2, 1, 0.05, 0., 10., 5,
+                        { interval(2., 2.1), interval(0., 0.1) }
+                };
+            case CIRCLE:
+                return { 2, 2, 1, 0.05, 0., 10., 4,
+                        { interval(-1.6, -1.4), interval(1.4, 1.6) }
+                };
+            case BOX:
+                return { 2, 2, 1, 0.05, 0., 10., 4,
+                    { interval(0.10, 0.2), interval(0.10,0.2) }
+                };
+            case LORENZATTR:
+                return { 3, 3, 1, 0.05, 0., 10., 4,
+                    { interval(0.0,0.1), interval(0.0,0.1), interval(0.0,0.1) }
+                };
+            case BALLISTIC:
+                return {4, 4, 1, 0.1, 0., 4., 3,
+                        { interval(181.,185.), 3.14159/180*interval(2.5,3.5), interval(0.0,0.01), interval(0.0,0.01)}
+                };
+            case LOTKAVOLTERRA:
+                return {2, 2, 1, 0.05, 0., 20., 4,
+                    {interval(0.25, 0.28), interval(0.16, 0.19)}
+                };
+            case FITHUGHNAGUMO:
+                return { 2, 2, 1, 0.05, 0., 25, 4,
+                    {interval(1., 1.2), interval(2.25, 2.45)}
+                };
             default:
                 throw logic_error("problem is not specified");
         }
@@ -82,16 +114,50 @@ public:
 
     template <class C>
     void operator()(vector<C> &yp, vector<C> y) {
+        double g = 9.81; // gravity in m/s^2
+        double rho = 1204.4; // air density in g/m3
+        double a = 0.000126677; // cross section du bullet d=12.7mm, cross section=pi R^2
+        double d = 0.45; // drag coefficient
+        double m = 14.3; // mass du bullet in g
+
         /**
-         * Colin: This is hardcoded to be the Brusselator
+         * Colin: problem formulas to switch to
          */
         switch(this->p) {
-            case BRUSSELATOR:
+            case BRUSSELATOR: // OK
                 yp[0] = 1 - (1.5 + 1) * y[0] + y[0] * y[0] * y[1];
                 yp[1] = 1.5 * y[0] - y[0] * y[0] * y[1];
                 break;
-            case VANDERPOLL:
-                throw logic_error("incomplete functionality");
+            case VANDERPOLL: // meh. Loses accuracy after t > 4.5
+                yp[0] = 1.0 * (1 - y[1] * y[1]) * y[0] - y[1];
+                yp[1] = y[0];
+                break;
+            case CIRCLE: // OK
+                yp[0] = -y[1] + y[0] * (1 - y[0] * y[0] - y[1] * y[1]);
+                yp[1] =  y[0] + y[1] * (1 - y[0] * y[0] - y[1] * y[1]);
+                break;
+            case BOX: // OK
+                yp[0] = (y[1] + 0.2 * y[0]) * (1 - y[0] * y[0]);
+                yp[1] = - y[0] * (1 - y[1] * y[1]);
+                break;
+            case LORENZATTR: // doesn't give anything
+                yp[0] = 10. * (y[1] - y[0]);
+                yp[1] = y[0] * (28. - y[2]) - y[1];
+                yp[2] = y[0] * y[1] - 2.667 * y[2];
+                break;
+            case BALLISTIC: // from Goubault/Putot
+                yp[0] = - g*sin(y[1])-rho*y[0]*y[0]*a*d/(2.0*m); // velocity v
+                yp[1] = - g*cos(y[1])/y[0]; // angle gamma with respect to the x axis
+                yp[2] = y[0]*cos(y[1]); // position x
+                yp[3] = y[0]*sin(y[1]); // position y
+                break;
+            case LOTKAVOLTERRA: // OK
+                yp[0] = (0.5 - y[1]) * y[0];
+                yp[1] = (-0.5 + y[0]) * y[1];
+                break;
+            case FITHUGHNAGUMO:
+                yp[0] = y[0] - 0.3333 * y[0] * y[0] * y[0] - y[1] + 0.875;
+                yp[1] = 0.08 * (y[0] + 0.7 - 0.8 * y[1]);
                 break;
             default:
                 throw logic_error("problem is not specified");

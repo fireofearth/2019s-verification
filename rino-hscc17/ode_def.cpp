@@ -63,17 +63,15 @@ void init_system(OdeFunc &odef, double &t_begin, double &t_end, double &tau, dou
     /**
      * Colin: problem dimensions
      */
-    //struct OdeInt ode_int = odef.get_initial_variables()
-    sysdim = 2; //ode_int.sysdim;
-    jacdim = 2;
-    nb_subdiv_init = 1; // nb of initial subdivisions of the input range
-    t_begin = 0;
-    tau = 0.05;
-    t_end = 10.;
-    order = 4;
-    inputs = vector<AAF>(jacdim);
-    inputs[0] = interval(0.9,1);
-    inputs[1] = interval(0,0.1);
+    struct OdeInit odeinit = odef.get_initial_variables();
+    sysdim = odeinit.sysdim;
+    jacdim = odeinit.jacdim;
+    nb_subdiv_init = odeinit.nb_subdiv_init;
+    t_begin = odeinit.t_begin;
+    t_end = odeinit.t_end;
+    tau = odeinit.tau;
+    order = odeinit.order;
+    inputs = odeinit.inputs;
 
     interval temp;
     int nb_points;
