@@ -79,19 +79,11 @@ int main(int argc, char* argv[]) {
 
     clock_t begin = clock();
 
-    //OdeFunc odef = OdeFunc(BRUSSELATOR);
-    //OdeFunc odef = OdeFunc(VANDERPOLL);
-    //OdeFunc odef = OdeFunc(CIRCLE);
-    //OdeFunc odef = OdeFunc(BOX);
-    //OdeFunc odef = OdeFunc(LORENZATTR);
-    //OdeFunc odef = OdeFunc(BALLISTIC);
-    //OdeFunc odef = OdeFunc(LOTKAVOLTERRA);
-    //OdeFunc odef = OdeFunc(FITHUGHNAGUMO);
-
     init_system(odef, t_begin, t_end, tau, d0, nb_subdiv, order);
 
     open_outputfiles();
-    
+
+    // Colin: seems to be used to preserve inputs
     vector<AAF> inputs_save(jacdim);
     for (int i=0 ; i<jacdim; i++)
         inputs_save[i] = inputs[i];

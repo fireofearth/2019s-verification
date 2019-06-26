@@ -91,6 +91,9 @@ void init_system(OdeFunc &odef, double &t_begin, double &t_end, double &tau, dou
     nb_points = (t_end-t_begin)/tau+1;
     
     // common to EDO and DDE
+    /**
+     *
+     */
     center_inputs = vector<AAF>(jacdim);
     eps = vector<interval>(jacdim);
     for (int i=0 ; i<jacdim ; i++)
