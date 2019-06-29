@@ -1,6 +1,6 @@
 using IntervalArithmetic
 
-include("interval.jl")
+include("Interval.jl")
 
 # In Modal Intervals, proper ≡ ∃, improper ≡ ∀, and real are both ∀,∃
 #=
