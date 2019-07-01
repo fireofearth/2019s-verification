@@ -1,3 +1,12 @@
+pair(x,y) = (x,y)
+
+let
+    counter = 0
+    global function disp(msg)
+        counter += 1
+        print("[$counter]: $msg\n")
+    end
+end
 
 function showtypetree(T, level=0)
     println("\t" ^ level, T)

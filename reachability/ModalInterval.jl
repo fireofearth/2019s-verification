@@ -13,7 +13,7 @@ Sainz, M.A., Armengol, J., Calm, R., Herrero, P., Jorba, L. and Vehi, J., 2014. 
 # TODO: finish ModalInterval
 # TODO: create IntervalBox
 
-using IntervalArithmetic, StaticArrays
+using IntervalArithmetic
 
 import Base:
     +, -, *, /, //, fma,

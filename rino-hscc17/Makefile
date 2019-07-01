@@ -10,11 +10,12 @@ FADBADHOME = $(HOME)/lib/fadbad-2.1
 
 CURRENT_DIR = $(shell pwd)
 
-# turned off -Wall
+# Colin: turned off -Wall
 CXXFLAGS = -ggdb  -frounding-math -DMAXORDER=$(MAX_ORDER) -I. -I$(FILIBHOME)/include -I$(FADBADHOME) -I/usr/include \
 	 -I$(CURRENT_DIR)/aaflib-0.1 -fpermissive -std=c++11
 
-LDFLAGS  +=  -L/usr/local/lib -L$(CURRENT_DIR)/aaflib-0.1 -L$(FILIBHOME)/lib
+# Colin -L/usr/local/lib => -L/usr/lib
+LDFLAGS  +=  -L/usr/lib -L$(CURRENT_DIR)/aaflib-0.1 -L$(FILIBHOME)/lib
 
 SOURCES_utils = matrix.cpp inner.cpp ode_def.cpp ode_integr.cpp
 
@@ -28,7 +29,7 @@ OBJECTS = $(SOURCES:%.cpp=%.o)
 
 all: $(OBJECTS) main
 
-main : $(SOURCES) $(OBJECTS) 
+main : $(SOURCES) $(OBJECTS)
 	$(CXX) $(LDFLAGS) -o $@ $(OBJECTS_utils) $@.o $(LIBS)
 
 clean:

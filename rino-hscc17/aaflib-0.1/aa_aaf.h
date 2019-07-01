@@ -132,7 +132,7 @@ class AAF
 
   AAInterval convert() const;
     
-    
+    // Goubault+Putot
     // concretization
     interval convert_int() const;
     interval convert_int(vector<interval> &constr_eps, int sysdim) const;

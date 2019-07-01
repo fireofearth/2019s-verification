@@ -91,8 +91,7 @@ AAF::AAF(double v0, const double * t1, const unsigned * t2, unsigned T):
   deviations(new double[T]),
   indexes(new unsigned[T])
 {
-  for (unsigned i = 0; i < length; i++)
-  {
+  for (unsigned i = 0; i < length; i++) {
     deviations[i] = t1[i];
 #ifdef FAST_RAD
     radius += fabs(deviations[i]);
@@ -103,7 +102,7 @@ AAF::AAF(double v0, const double * t1, const unsigned * t2, unsigned T):
   if (indexes[length-1] > last) 
     last = indexes[length-1];
 #ifdef CLEANUP
-  allAAF.push_back(this);
+  aallAAF.push_back(this);
 #endif
 }
 
@@ -356,38 +355,30 @@ bool AAF::operator == (const AAF & P) const
     return false;
   
   // if the central value is not equal - there will be no equivalence
-  if (fabs(cvalue) < 1 && fabs(P.cvalue) < 1)
-  {
+  if (fabs(cvalue) < 1 && fabs(P.cvalue) < 1) {
     if (fabs(cvalue - P.cvalue) > 1E-15)
       return false; 
   }
-  else
-  {
+  else {
     if ( fabs(cvalue - P.cvalue) / (fabs(cvalue) + fabs(P.cvalue)) > 1E-15)
       return false;
   }
   // compare if all deviations and their respective indexes both are equal
-  for (unsigned i = 0; i < length; i++) 
-  {	
-    if ( fabs(deviations[i]) < 1 &&  fabs(P.deviations[i]) < 1)
-    {
+  for (unsigned i = 0; i < length; i++) {
+    if ( fabs(deviations[i]) < 1 &&  fabs(P.deviations[i]) < 1) {
       if ( fabs( deviations[i] - P.deviations[i]) > 1E-15 ||
-	   (indexes[i] != P.indexes[i]) )
-      {
-	result = false;
-	break;
+	   (indexes[i] != P.indexes[i]) ) {
+	    result = false;
+	    break;
       }
     }
-    else
-    {
+    else {
       if ( fabs(deviations[i] - P.deviations[i]) /  
-	   (fabs(deviations[i]) + fabs(P.deviations[i]) )  > 1E-15 ||
-	   (indexes[i] != P.indexes[i]) )
-      {
-	result = false;
-	break;
+	       (fabs(deviations[i]) + fabs(P.deviations[i]) )  > 1E-15 ||
+	       (indexes[i] != P.indexes[i]) ) {
+	    result = false;
+	    break;
       }
-      
     }
   }
   return result;
@@ -577,10 +568,8 @@ double AAF::getAbsMin() const
  *   Input  : unsigned : index
  *   Output : double   : reference to the corresponding index
  ************************************************************/
-double AAF::operator[](unsigned ind) const
-{  
-  if (ind < 0 || ind > length)
-  {
+double AAF::operator[](unsigned ind) const {
+  if (ind < 0 || ind > length) {
     printf("Index out of bounds [0..%d]...\n", length);
     // return cvalue;
     return 0.0;
