@@ -748,8 +748,7 @@ void HybridStep_ode::TM_evalandprint_solutionstep(vector<interval> &eps, double 
     // eval and store at time tnp1
     TM_eval();
     
-    if (innerapprox == 0)
-    {
+    if (innerapprox == 0) {
         for (int i = 0 ; i<sysdim ; i++) {
             TMcenter.xp1[i].compact();  // compact the affine form: remove zero coefficients (there are some ...)
             TMcenter.xp1[i].sumup(tol_noise); // group small terms
