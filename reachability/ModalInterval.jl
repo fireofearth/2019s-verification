@@ -53,9 +53,22 @@ end
 # Getter functions
 mod(X::ModalInterval) = X.pred
 prop(X::ModalInterval) = interval(X.prime)
+
+ #=
+ # Returns sup(X) = x₂ where X = [x₁, x₂]
+=# 
 sup(X::ModalInterval) = mod(X) == improper ? X.prime.lo : X.prime.hi
+
+ #=
+ # Returns inf(X) = x₁ where X = [x₁, x₂]
+=# 
 inf(X::ModalInterval) = mod(X) == improper ? X.prime.hi : X.prime.lo
+
+ #=
+ # Prints [x₁, x₂] =: X
+=# 
 display(X::ModalInterval) = print("[$(inf(X)), $(sup(X))]")
+
 function ret(X::ModalInterval)
     return inf(X), sup(X)
 end
@@ -75,7 +88,6 @@ end
 -(A::ModalInterval, B::ModalInterval) = A + (-B)
 
 # Kaucher multiplication
-# Obtained
 function *(A::ModalInterval, B::ModalInterval)
     (a₁, a₂) = ret(A)
     (b₁, b₂) = ret(B)
@@ -85,9 +97,87 @@ function *(A::ModalInterval, B::ModalInterval)
         return ModalInterval(a₁*b₁, a₁*b₂)
     elseif(a₁ ≥ 0 && a₂ ≥ 0 && b₁ < 0 && b₂ ≥ 0)
         return ModalInterval(a₂*b₁, a₂*b₂)
-    else
-        error("function * is incomplete")
+    elseif(a₁ ≥ 0 && a₂ ≥ 0 && b₁ < 0 && b₂ < 0)
+        return ModalInterval(a₂*b₁, a₁*b₂)
+    elseif(a₁ ≥ 0 && a₂ < 0 && b₁ ≥ 0 && b₂ ≥ 0)
+        return ModalInterval(a₁*b₁, a₂*b₁)
+    elseif(a₁ ≥ 0 && a₂ < 0 && b₁ ≥ 0 && b₂ < 0)
+        return ModalInterval(max(a₂*b₂, a₁*b₁), min(a₂*b₁, a₁*b₂))
+    elseif(a₁ ≥ 0 && a₂ < 0 && b₁ < 0 && b₂ ≥ 0)
+        return ModalInterval(0, 0)
+    elseif(a₁ ≥ 0 && a₂ < 0 && b₁ < 0 && b₂ < 0)
+        return ModalInterval(a₂*b₂, a₁*b₂)
+    elseif(a₁ < 0 && a₂ ≥ 0 && b₁ ≥ 0 && b₂ ≥ 0)
+        return ModalInterval(a₁*b₂, a₂*b₂)
+    elseif(a₁ < 0 && a₂ ≥ 0 && b₁ ≥ 0 && b₂ < 0)
+        return ModalInterval(0, 0)
+    elseif(a₁ < 0 && a₂ ≥ 0 && b₁ < 0 && b₂ ≥ 0)
+        return ModalInterval(min(a₁*b₂, a₂*b₁), max(a₁*b₁, a₂*b₂))
+    elseif(a₁ < 0 && a₂ ≥ 0 && b₁ < 0 && b₂ < 0)
+        return ModalInterval(a₂*b₁, a₁*b₁)
+    elseif(a₁ < 0 && a₂ < 0 && b₁ ≥ 0 && b₂ ≥ 0)
+        return ModalInterval(a₁*b₂, a₂*b₁)
+    elseif(a₁ < 0 && a₂ < 0 && b₁ ≥ 0 && b₂ < 0)
+        return ModalInterval(a₂*b₂, a₂*b₁)
+    elseif(a₁ < 0 && a₂ < 0 && b₁ < 0 && b₂ ≥ 0)
+        return ModalInterval(a₁*b₂, a₁*b₁)
+    else # if(a₁ < 0 && a₂ < 0 && b₁ < 0 && b₂ < 0)
+        return ModalInterval(a₂*b₂, a₁*b₁)
     end
 end
+
+function Base.:^(A::ModalInterval, n::Int)
+    (a₁, a₂) = ret(A)
+    if(isodd(n))
+        return ModalInterval(a₁^n, a₂^n)
+    else
+        if(a₁ ≥ 0, x₂ ≥ 0)
+            return ModalInterval(a₁^n, a₂^n)
+        elseif(a₁ < 0, x₂ < 0)
+            return ModalInterval(a₂^n, a₁^n)
+        elseif(a₁ < 0, x₂ ≥ 0)
+            return ModalInterval(0, max(abs(a₂)^n, abs(a₁)^n))
+        else # if(a₁ ≥ 0, x₂ < 0)
+            return ModalInterval(max(abs(a₂)^n, abs(a₁)^n), 0)
+        end
+    end
+end
+
+function inv(B::ModalInterval)
+    if(0 ∈ prop(B))
+        throw(DomainError(B, "proper interval must not contain zero"))
+    end
+    return ModalInterval(1/sup(B), 1/inf(B))
+end
+
+ #=
+ # Kaucher division
+ # expanded to if-else cases
+=#
+function /(A::ModalInterval, B::ModalInterval)
+    if(0 ∈ prop(B))
+        throw(DomainError(B, "proper interval must not contain zero"))
+    end
+    (a₁, a₂) = ret(A)
+    (b₁, b₂) = ret(B)
+    if(a₁ ≥ 0 && a₂ ≥ 0 && b₁ > 0 && b₂ > 0)
+        return ModalInterval(a₁/b₂, a₂/b₁)
+    elseif(a₁ ≥ 0 && a₂ ≥ 0 && b₁ < 0 && b₂ < 0)
+        return modalinterval(a₂/b₂, a₁/b₁)
+    elseif(a₁ ≥ 0 && a₂ < 0 && b₁ > 0 && b₂ > 0)
+        return modalinterval(a₁/b₂, a₂/b₂)
+    elseif(a₁ ≥ 0 && a₂ < 0 && b₁ < 0 && b₂ < 0)
+        return modalinterval(a₂/b₁, a₁/b₁)
+    elseif(a₁ < 0 && a₂ ≥ 0 && b₁ > 0 && b₂ > 0)
+        return modalinterval(a₁/b₁, a₂/b₁)
+    end
+end
+
+
+
+
+
+
+
 
 

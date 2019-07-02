@@ -44,7 +44,7 @@ AAFInd = Int64
  # - force setLastAFFIndex to call whenever a new AAF instance is created.
  #
  # TODO: turn this into a decorator/macro and force calls
- # TODO: what is `last` for exactly?
+ # TODO: which functions is `last` for exactly?
 =#
 let last::Int = 0
 
@@ -100,6 +100,7 @@ end
  # TODO: refactor to get rid of length and size, can query vector length
  # TODO: we don't need to write most getters, since AAF is immutable
  # TODO: make this inherit AbstractArrays
+ # TODO: enable iterator, indexing
 =#
 struct AAF
     cvalue::AAFCoeff  # central value 
@@ -117,7 +118,7 @@ struct AAF
      # Creates an AAF with deviations
      # TODO: not sure if dev, ind that are longer than t in aaflib is applicable
      # TODO: what if t > length(dev) ?
-     # TODO: get rid of l; clean
+     # TODO: get rid of l; clean up comments
     =#
     #AAF(v0::AAFCoeff, dev::Vector{AAFCoeff}, ind::Vector{AAFCoeff}, t:Unsigned) = new(
     #    v0, t, t, dev[1:t], setLastAFFIndex(ind[1:t])
