@@ -62,20 +62,17 @@ AAF AAF::operator * (const AAF & P) const
   unsigned l1 = length;
   unsigned l2 = P.length;
 
-  if (l1+l2 == 0)
-  {
+  if (l1+l2 == 0) {
     AAF Temp(cvalue*P.cvalue);
     return Temp;
   }
-  if (l1 == 0)
-  {
+  if (l1 == 0) {
     // if *this is double
     AAF Temp(P);
     Temp *= cvalue;
     return Temp;
   }
-  if (l2 == 0)
-  {
+  if (l2 == 0) {
     // if P is double
     AAF Temp(*this);
     Temp *= P.cvalue;
@@ -113,20 +110,17 @@ AAF AAF::operator * (const AAF & P) const
 
   // Fill the deviations array
 
-  for (unsigned i = 0; i < ltemp; i++)
-  {
+  for (unsigned i = 0; i < ltemp; i++) {
     unsigned a = pu1 - id1;
     unsigned b = pu2 - id2;
     
-    if (a == l1 || id1[a] != idtemp[i])
-    {
+    if (a == l1 || id1[a] != idtemp[i]) {
       vatempg[i] = cvalue*va2[b];  // cvalue*va2[b]+(P.cvalue)*0
       pu2++;
       continue;
     }
     
-    if (b == l2 || id2[b] != idtemp[i])
-    {
+    if (b == l2 || id2[b] != idtemp[i]) {
       vatempg[i] = (P.cvalue)*va1[a];  // cvalue*0+(P.cvalue)*va1[a]
       pu1++;
       continue;
@@ -144,8 +138,7 @@ AAF AAF::operator * (const AAF & P) const
   double delta = rad()*P.rad();
 
   Temp.indexes[ltemp] = inclast();
-  if (AAF::approximationType == SECANT)
-  {
+  if (AAF::approximationType == SECANT) {
     commonTermCenter *= 0.5;
     commonTermDeviation *= 0.5;
 
@@ -169,8 +162,7 @@ AAF AAF::operator * (const AAF & P) const
     Temp.cvalue += commonTermCenter;
     return Temp;
   }
-  else
-  {
+  else {
     Temp.deviations[ltemp] = delta;
   }
   

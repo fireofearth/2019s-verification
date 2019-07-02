@@ -54,7 +54,7 @@ function getLeftModuleSolCoeffs(
     f::Function, ind::Vector, dev::Vector
 )
     rg = last(ind)
-    for ii in rg
+    #for ii in rg
 end
 
 @testset "affine arithmetic" begin
@@ -95,9 +95,18 @@ end
     end
 
     @testset "affine negative" begin
-        aInv = -a2
-        subSol = pair.(ind2)
-        @test 
+        aNeg = -a2
+        @test aNeg[0] == -center2
+        negSol = pair.(ind2, -dev2)
+        @test length(aNeg) == length(aNeg.indexes) == length(negSol)
+        negComp = [(aNeg.indexes[ii], dev) for (ii, dev) in enumerate(aNeg.deviations)]
+        for ((compIdx, compDev), (solIdx, solDev)) in pair.(negComp,negSol)
+            @test compIdx == solIdx
+            @test compDev ≈ solDev
+        end
+    end
+
+    @testset "affine add constant" begin
     end
 end
 

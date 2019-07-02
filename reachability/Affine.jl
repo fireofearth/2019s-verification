@@ -64,16 +64,21 @@ let last::Int = 0
      # To be used when assigning computation noise.
      # Similar to inclast() in aaflib
     =#
-    global function setLastAAFIndex()
+    global function addAAFIndex()
         last += 1
         return [last]
+    end
+
+    global function addAAFIndex(indexes::Vector{AAFInd})
+        last += 1
+        return vcat(indexes,last)
     end
 
      #=
      # TODO: finish and make sure this is correct
     =#
     global function setLastAAFIndex(indexes::Vector{AAFInd})
-        m = maximum(indexes)
+        m = last(indexes)
         if(m > last)
             last = m
         end
@@ -86,7 +91,10 @@ end
  #
  # Specification:
  # - AAF is a collection with deviations as its elements.
+ #
+ # Invariants:
  # - AAF indexes are always in sorted order from lowest to highest
+ # - elts in AAF indexes are unique
  #
  # TODO: it's not clear whether `length` and `size` are redundant
  # TODO: refactor to get rid of length and size, can query vector length
@@ -130,7 +138,7 @@ struct AAF
      #=
      # Constructor from intervals
     =#
-    AAF(iv::Interval) = new(mid(iv), [radius(iv)], setLastAAFIndex())
+    AAF(iv::Interval) = new(mid(iv), [radius(iv)], addAAFIndex())
 
      #=
      # Constructor that assigns new center to AAF
@@ -205,7 +213,7 @@ getAbsMax()::AAFCoeff = max(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 getAbsMin()::AAFCoef  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 
 Base.firstindex(a::AAF) = length(a) > 0 ? a.indexes[1] : 0
-Base.lastindex(a::AAF)  = length(a) > 0 ? a.indexes[length] : 0 
+Base.lastindex(a::AAF)  = length(a) > 0 ? last(a.indexes) : 0 
 
  #=
  # Unknown methods
@@ -262,13 +270,14 @@ function ==(a::AAF, p::AAF)
     return true
 end
 
-+(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a.cvalue + cst)
--(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a.cvalue - cst)
++(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a[0] + cst)
+-(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a[0] - cst)
++(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst + a[0])
+-(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst - a[0])
 
-+(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst + a.cvalue)
--(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst - a.cvalue)
+*(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a[0] * cst, cst * deviations)
+*(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst * a[0], cst * deviations)
 
-*(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a.cvalue * cst, cst * deviations)
 function /(a::AAF, cst::AAFCoeff)::AAF
     @assert cst != 0.0
     AAF(a, a.cvalue * (1.0 / cst), (1.0 / cst) * deviations)
@@ -283,12 +292,14 @@ function +(a::AAF, p::AAF)::AAF
     elseif(length(a) == 0)
         return a[0] + p
     end
-    indt = sort([ii for ii in union(a.indexes, p.indexes)])
-    devt = [
-        (ia == nothing ? p[ip] : 
-         (ip == nothing ? a[ia] : a[ia] + p[ip])) 
-        for (ia,ip) in pair.(indexin(indt, a.indexes), indexin(indt, p.indexes))
-    ]
+    indt = [ii for ii in union(a.indexes, p.indexes)]
+    sort!(indt)
+    devt = fill(0.0, length(indt)) #  Vector(undef,length(indt))
+    pcomp = pair.(indexin(indt, a.indexes), indexin(indt, p.indexes))
+    for (ii, (ia,ip)) in enumerate(pcomp)
+        devt[ii] = (ia == nothing ? p[ip] : 
+         (ip == nothing ? a[ia] : a[ia] + p[ip]))
+    end
     return AAF(a[0] + p[0], devt, indt)
 end
 
@@ -301,12 +312,14 @@ function -(a::AAF, p::AAF)::AAF
     elseif(length(a) == 0)
         return a[0] - p
     end
-    indt = sort([ii for ii in union(a.indexes, p.indexes)])
-    devt = [
-        (ia == nothing ? -p[ip] : 
-         (ip == nothing ? a[ia] : a[ia] - p[ip])) 
-        for (ia,ip) in pair.(indexin(indt, a.indexes), indexin(indt, p.indexes))
-    ]
+    indt = [ii for ii in union(a.indexes, p.indexes)]
+    sort!(indt)
+    devt = fill(0.0, length(indt)) #  Vector(undef,length(indt))
+    pcomp = pair.(indexin(indt, a.indexes), indexin(indt, p.indexes))
+    for (ii, (ia,ip)) in enumerate(pcomp)
+        devt[ii] = (ia == nothing ? -p[ip] : 
+         (ip == nothing ? a[ia] : a[ia] - p[ip]))
+    end
     return AAF(a[0] - p[0], devt, indt)
 end
 
@@ -314,8 +327,44 @@ function -(a::AAF)::AAF
     return AAF(a, -a[0], -1 * a.deviations)
 end
 
+ #=
+ # Approximates a * p where a, p are AAF
+ #
+ # Specification:
+ #
+ # TODO: there are various multiplication forms
+ #   xy = x₀ŷ₀ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + ½∑[over 1⩽i,j⩽n] |xᵢyⱼ+yᵢxⱼ|μₖ
+ #   xy = x₀ŷ₀ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + (∑ᴺᵢ|xᵢ|)(∑ᴺᵢ|yᵢ|)μₖ (using this one)
+ #
+ # TODO: aaflib uses an unknown approximation method for μₖ
+=#
 function *(a::AAF, P::AAF)::AAF
-    #
+    if(length(p) == 0)
+        return a * p[0]
+    elseif(length(a) == 0)
+        return a[0] * p
+    end
+    # create new index with length = length(a.indexes) + length(p.indexes) + 1
+    indt = sort([ii for ii in union(a.indexes, p.indexes)])
+    indt = addAAFIndex(indt)
+    lindt = length(indt)
+    devt  = fill(0.0, lindt)
+    pcomp = pair.(indexin(indt, a.indexes), indexin(indt, p.indexes))
+    for (ii, (ia,ip)) in enumerate(pcomp)
+        devt[ii] = (ia == nothing ? a[0] * p[ip] : 
+                    (ip == nothing ? a[ia] * p[0] : 
+                     a[ia] * p[0] + a[0] * p[ip]))
+        #devt[lindt] += (ia == nothing || ip == nothing) ? 0 :
+        #                    a[ia] * p[ip]
+    end
+    devt[lindt] = rad(a) * rad(p)
+    return AAF(a[0] * p[0], devt, indt)
+end
+
+function inv(a::AAF)::AAF
+    if(length(a) == 0)
+        return AAF(1.0 / a[0])
+    end
 end
 
 function /(a::AAF, P::AAF)::AAF
