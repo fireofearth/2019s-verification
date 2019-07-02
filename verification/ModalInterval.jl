@@ -10,7 +10,7 @@ Sainz, M.A., Armengol, J., Calm, R., Herrero, P., Jorba, L. and Vehi, J., 2014. 
 =#
 
 # TODO: turn this file into a module, optimize compilation\runtime
-# TODO: finish ModalInterval
+# TODO: complete tests for ModalInterval
 # TODO: create IntervalBox
 
 using IntervalArithmetic
@@ -152,7 +152,6 @@ end
 
  #=
  # Kaucher division
- # expanded to if-else cases
 =#
 function /(A::ModalInterval, B::ModalInterval)
     if(0 ∈ prop(B))
@@ -163,13 +162,19 @@ function /(A::ModalInterval, B::ModalInterval)
     if(a₁ ≥ 0 && a₂ ≥ 0 && b₁ > 0 && b₂ > 0)
         return ModalInterval(a₁/b₂, a₂/b₁)
     elseif(a₁ ≥ 0 && a₂ ≥ 0 && b₁ < 0 && b₂ < 0)
-        return modalinterval(a₂/b₂, a₁/b₁)
+        return ModalInterval(a₂/b₂, a₁/b₁)
     elseif(a₁ ≥ 0 && a₂ < 0 && b₁ > 0 && b₂ > 0)
-        return modalinterval(a₁/b₂, a₂/b₂)
+        return ModalInterval(a₁/b₂, a₂/b₂)
     elseif(a₁ ≥ 0 && a₂ < 0 && b₁ < 0 && b₂ < 0)
-        return modalinterval(a₂/b₁, a₁/b₁)
+        return ModalInterval(a₂/b₁, a₁/b₁)
     elseif(a₁ < 0 && a₂ ≥ 0 && b₁ > 0 && b₂ > 0)
-        return modalinterval(a₁/b₁, a₂/b₁)
+        return ModalInterval(a₁/b₁, a₂/b₁)
+    elseif(a₁ < 0 && a₂ ≥ 0 && b₁ < 0 && b₂ < 0)
+        return ModalInterval(a₂/b₂, a₁/b₂)
+    elseif(a₁ < 0 && a₂ < 0 && b₁ > 0 && b₂ > 0)
+        return ModalInterval(a₁/b₁, a₂/b₂)
+    else # if(a₁ < 0 && a₂ < 0 && b₁ < 0 && b₂ < 0)
+        return ModalInterval(a₂/b₁, a₁/b₂)
     end
 end
 
