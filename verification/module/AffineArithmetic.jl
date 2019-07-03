@@ -1,4 +1,5 @@
- #=
+module AffineArithmetic 
+#=
  # Affine arithmetic module
  #
  # This is a implementation of the An Affine Arithmetic C++
@@ -18,24 +19,38 @@
  # TODO: Goubault/Putot functions mult_eps, hull
 =#
 
-using IntervalArithmetic, StaticArrays
+localModulePath = "/home/fireofearth/Research/mitchell-ian/2019s-verification/verification/module"
+if(!(localModulePath in LOAD_PATH))
+    push!(LOAD_PATH, localModulePath)
+end
 
-include("ModalInterval.jl")
+import IntervalArithmetic: Interval
 
-import IntervalArithmetic
-
-import Base
+# since we will likely use AffineArithmetic along with IntervalArithmetic, we want to avoid namespace conflicts so we will import inf, sup here
+import IntervalArithmetic: inf, sup
 
 import Base:
-    ==
+    getindex, length, repr, size, firstindex, lastindex,
+    <, <=, >, >=, ==, +, -, *, /, inv
+
+export
+    AAFCoeff, AAFInd, ApproximationType, AAF,
+    getindex, length, repr, firstindex, lastindex,
+    <, <=, >, >=,
+    Interval,
+    rad, getMax, getMin, getAbsMax, getAbsMin, inv,
+    ==, +, -, *, /
+
+# TODO: testing only
+export getLastAAFIndex, resetLastAAFIndex
+
 
  #=
  # Type declarations
 =#
 AAFCoeff = Float64
 AAFInd = Int64
-
-@enum tApproximationType MINRANGE CHEBYSHEV SECANT
+@enum ApproximationType MINRANGE CHEBYSHEV SECANT
 
  #=
  # last keeps record of last coefficient index of affine forms accoss all AAF instances.
@@ -46,17 +61,17 @@ AAFInd = Int64
  # TODO: turn this into a decorator/macro and force calls
  # TODO: which functions is `last` for exactly?
 =#
-let last::Int = 0
+let lastAAFIndex::Int = 0
 
     global function resetLastAAFIndex()
-        last = 0
+        lastAAFIndex = 0
     end
 
      #=
      # Similar to getDefault() in aaflib
     =#
     global function getLastAAFIndex()
-        return last
+        return lastAAFIndex
     end
 
      #=
@@ -65,13 +80,13 @@ let last::Int = 0
      # Similar to inclast() in aaflib
     =#
     global function addAAFIndex()
-        last += 1
-        return [last]
+        lastAAFIndex += 1
+        return [lastAAFIndex]
     end
 
     global function addAAFIndex(indexes::Vector{AAFInd})
-        last += 1
-        return vcat(indexes,last)
+        lastAAFIndex += 1
+        return vcat(indexes, lastAAFIndex)
     end
 
      #=
@@ -79,8 +94,8 @@ let last::Int = 0
     =#
     global function setLastAAFIndex(indexes::Vector{AAFInd})
         m = last(indexes)
-        if(m > last)
-            last = m
+        if(m > lastAAFIndex)
+            lastAAFIndex = m
         end
         return indexes
     end
@@ -168,7 +183,7 @@ end
 # highest deviation symbol in use
 # last::Int
 
-function Base.getindex(a::AAF, ind::Int)::AAFCoeff
+function getindex(a::AAF, ind::Int)::AAFCoeff
     if(ind < 0 || ind > length(a.deviations))
         return 0.0
     elseif(ind == 0)
@@ -178,11 +193,11 @@ function Base.getindex(a::AAF, ind::Int)::AAFCoeff
     end
 end
 
-function Base.length(a::AAF)
+function length(a::AAF)
     return length(a.deviations)
 end
 
-function Base.repr(a::AAF)
+function repr(a::AAF)
     s = "$(a[0])"
     if(length(a) > 0)
         for i in 1:length(a)
@@ -213,8 +228,8 @@ getMin(a::AAF)::AAFCoeff = a[0] - rad(a)
 getAbsMax()::AAFCoeff = max(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 getAbsMin()::AAFCoef  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 
-Base.firstindex(a::AAF) = length(a) > 0 ? a.indexes[1] : 0
-Base.lastindex(a::AAF)  = length(a) > 0 ? last(a.indexes) : 0 
+firstindex(a::AAF) = length(a) > 0 ? a.indexes[1] : 0
+lastindex(a::AAF)  = length(a) > 0 ? last(a.indexes) : 0 
 
  #=
  # Unknown methods
@@ -225,10 +240,10 @@ Base.lastindex(a::AAF)  = length(a) > 0 ? last(a.indexes) : 0
   #=
   # Conditionals
  =#
- Base.:<(a::AAF,  p::AAF) = (a[0] + rad(a)) <  (p[0] - rad(p))
- Base.:<=(a::AAF, p::AAF) = (a[0] + rad(a)) <= (p[0] - rad(p))
- Base.:>(a::AAF,  p::AAF) = (a[0] - rad(a)) >  (p[0] + rad(p))
- Base.:>=(a::AAF, p::AAF) = (a[0] - rad(a)) >= (p[0] + rad(p))
+<(a::AAF,  p::AAF) = (a[0] + rad(a)) <  (p[0] - rad(p))
+<=(a::AAF, p::AAF) = (a[0] + rad(a)) <= (p[0] - rad(p))
+>(a::AAF,  p::AAF) = (a[0] - rad(a)) >  (p[0] + rad(p))
+>=(a::AAF, p::AAF) = (a[0] - rad(a)) >= (p[0] + rad(p))
 
  #=
  # Equality
@@ -296,7 +311,7 @@ function +(a::AAF, p::AAF)::AAF
     indt = [ii for ii in union(a.indexes, p.indexes)]
     sort!(indt)
     devt = fill(0.0, length(indt)) #  Vector(undef,length(indt))
-    pcomp = pair.(indexin(indt, a.indexes), indexin(indt, p.indexes))
+    pcomp = tuple.(indexin(indt, a.indexes), indexin(indt, p.indexes))
     for (ii, (ia,ip)) in enumerate(pcomp)
         devt[ii] = (ia == nothing ? p[ip] : 
          (ip == nothing ? a[ia] : a[ia] + p[ip]))
@@ -316,7 +331,7 @@ function -(a::AAF, p::AAF)::AAF
     indt = [ii for ii in union(a.indexes, p.indexes)]
     sort!(indt)
     devt = fill(0.0, length(indt)) #  Vector(undef,length(indt))
-    pcomp = pair.(indexin(indt, a.indexes), indexin(indt, p.indexes))
+    pcomp = tuple.(indexin(indt, a.indexes), indexin(indt, p.indexes))
     for (ii, (ia,ip)) in enumerate(pcomp)
         devt[ii] = (ia == nothing ? -p[ip] : 
          (ip == nothing ? a[ia] : a[ia] - p[ip]))
@@ -350,7 +365,7 @@ function *(a::AAF, P::AAF)::AAF
     indt = addAAFIndex(indt)
     lindt = length(indt)
     devt  = fill(0.0, lindt)
-    pcomp = pair.(indexin(indt, a.indexes), indexin(indt, p.indexes))
+    pcomp = tuple.(indexin(indt, a.indexes), indexin(indt, p.indexes))
     for (ii, (ia,ip)) in enumerate(pcomp)
         devt[ii] = (ia == nothing ? a[0] * p[ip] : 
                     (ip == nothing ? a[ia] * p[0] : 
@@ -383,8 +398,4 @@ end
 #AAF operator + (double, const AAF);
 #AAF operator - (double, const AAF);
 
-
-
-
-
-
+end # module AffineArithmetic

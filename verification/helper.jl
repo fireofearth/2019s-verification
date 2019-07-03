@@ -1,5 +1,3 @@
-pair(x,y) = (x,y)
-
 let
     counter = 0
     global function disp(msg)

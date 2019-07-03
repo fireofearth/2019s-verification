@@ -1,9 +1,5 @@
-#__precompile__(true)
-#
-#module IntervalArithmetic
-
+module ModalIntervalArithmetic
 #=
-
 Functions are obtained from Modal interval analysis book.
 
 Sainz, M.A., Armengol, J., Calm, R., Herrero, P., Jorba, L. and Vehi, J., 2014. Modal interval analysis. Lecture Notes in Mathematics, 2091.
@@ -15,6 +11,7 @@ Sainz, M.A., Armengol, J., Calm, R., Herrero, P., Jorba, L. and Vehi, J., 2014. 
 
 using IntervalArithmetic
 
+# TODO: tidy
 import Base:
     +, -, *, /, //, fma,
     <, >, ==, !=, ⊆, ^, <=,
@@ -27,6 +24,15 @@ import Base:
     convert, promote_rule, eltype, size,
     BigFloat, float, widen, big,
     ∩, ∪, ⊆, ⊇, ∈, eps
+
+import IntervalArithmetic:
+    inf, sup
+
+export
+    ModalInterval, Predicate,
+    mod, prop, sup, inf, display, ret, dual
+    ==, ⊆, ⊇, +, -, *, /, inv
+
 
 function debug(); print("DEBUG\n"); end
 
@@ -56,13 +62,15 @@ prop(X::ModalInterval) = interval(X.prime)
 
  #=
  # Returns sup(X) = x₂ where X = [x₁, x₂]
+ # Note that sup is already defined for IntervalArithmetic, so overloading
 =# 
-sup(X::ModalInterval) = mod(X) == improper ? X.prime.lo : X.prime.hi
+IntervalArithmetic.sup(X::ModalInterval) = mod(X) == improper ? X.prime.lo : X.prime.hi
 
  #=
  # Returns inf(X) = x₁ where X = [x₁, x₂]
+ # Note that inf is already defined for IntervalArithmetic, so overloading
 =# 
-inf(X::ModalInterval) = mod(X) == improper ? X.prime.hi : X.prime.lo
+IntervalArithmetic.inf(X::ModalInterval) = mod(X) == improper ? X.prime.hi : X.prime.lo
 
  #=
  # Prints [x₁, x₂] =: X
@@ -79,7 +87,7 @@ end
 # Modal inclusion / equality
 # In Modal Intervals, proper ≡ ∃, improper ≡ ∀, and real are both ∀,∃
 ⊆(A::ModalInterval, B::ModalInterval) = inf(A) ≥ inf(B) && sup(A) ≤ sup(B)
-⊇(A::ModalInterval, B::ModalInterval) = A ⊆ B
+⊇(A::ModalInterval, B::ModalInterval) = B ⊆ A
 ==(A::ModalInterval, B::ModalInterval) = inf(A) == inf(B) && sup(B) == sup(A)
 
 # Arithmetic
@@ -126,7 +134,7 @@ function *(A::ModalInterval, B::ModalInterval)
     end
 end
 
-function Base.:^(A::ModalInterval, n::Int)
+function ^(A::ModalInterval, n::Int)
     (a₁, a₂) = ret(A)
     if(isodd(n))
         return ModalInterval(a₁^n, a₂^n)
@@ -178,11 +186,4 @@ function /(A::ModalInterval, B::ModalInterval)
     end
 end
 
-
-
-
-
-
-
-
-
+end # module ModalIntervalArithmetic

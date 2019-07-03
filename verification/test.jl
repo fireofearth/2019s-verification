@@ -1,10 +1,13 @@
-using Test, Random
+include("./helper.jl")
 
-using IntervalArithmetic
+localModulePath = "/home/fireofearth/Research/mitchell-ian/2019s-verification/verification/module"
+if(!(localModulePath in LOAD_PATH))
+    push!(LOAD_PATH, localModulePath)
+end
 
-include("helper.jl")
-include("ModalInterval.jl")
-include("Affine.jl")
+using Test, Random, IntervalArithmetic
+using ModalIntervalArithmetic
+using AffineArithmetic
 
 @testset "modal interval getters" begin
     X = ModalInterval(1,2) # proper
@@ -19,24 +22,33 @@ include("Affine.jl")
     @test inf(dY) == 1 && sup(dY) == 2
     @test inf(Z) == sup(Z) == 2
     @test inf(dZ) == sup(dZ) == 2
-    @test dX == Y && dY = X
+    @test dX == Y && dY == X
 end
 
 @testset "modal interval comparison" begin
     X = ModalInterval(2,3)
     Y = ModalInterval(1,4)
     dX = ModalInterval(3,2)
-    dY = ModalInterval(4,3)
-    @test X ⊆ Y && Y ⊇ X
-    @test dX ⊇ dY && dY ⊆ dX
+    dY = ModalInterval(4,1)
+    # ([2,3]',∃) = [2,3] ⊆ [1,4] = ([1,4]',∃)
+    # => [2,3]' ⊆ [1,4]'
+    @test  X ⊆ Y  &&  Y ⊇ X
+    # ([2,3]',∀) = [3,2] ⊇ [4,1] = ([1,4]',∀)
+    # => [2,3]' ⊆ [1,4]'
+    @test dX ⊇ dY && dY ⊆ dX 
 end
 
-@testset "modal interval arithmetic" begin
+@testset "modal interval additive group" begin
     A = ModalInterval(1,2)
     B = ModalInterval(3,4)
     @test A + B == ModalInterval(1+3,2+4)
     @test -A == ModalInterval(-2,-1)
     @test A - B == ModalInterval(1-4,2-3)
+    @test A * B == ModalInterval(1 * 3, 2 * 4)
+end
+
+@testset "modal interval multiplicative group" begin
+    #A = ModalInterval()
 end
 
 function getGroupSolCoeffs(
@@ -57,17 +69,19 @@ function getGroupSolCoeffs(
         end
     end
     return sort(
-        filter(x -> x[2] != nothing, pair.(rg,addSol)), 
+        filter(x -> x[2] != nothing, tuple.(rg,addSol)), 
         by = y -> y[1]
     )
 end
 
+#=
 function getLeftModuleSolCoeffs(
     f::Function, ind::Vector, dev::Vector
 )
     rg = last(ind)
     #for ii in rg
 end
+=#
 
 @testset "affine arithmetic" begin
     center1 = rand(Float64) + rand(0:99)
@@ -88,7 +102,7 @@ end
         addnSol = getGroupSolCoeffs(+,ind1,ind2,dev1,dev2)
         @test length(aAddn) == length(aAddn.indexes) == length(addnSol)
         addnComp = [(aAddn.indexes[ii], dev) for (ii, dev) in enumerate(aAddn.deviations)]
-        for ((compIdx, compDev), (solIdx, solDev)) in pair.(addnComp,addnSol)
+        for ((compIdx, compDev), (solIdx, solDev)) in tuple.(addnComp,addnSol)
             @test compIdx == solIdx
             @test compDev ≈ solDev
         end
@@ -100,7 +114,7 @@ end
         subtSol = getGroupSolCoeffs(-,ind1,ind2,dev1,dev2)
         @test length(aSubt) == length(aSubt.indexes) == length(subtSol)
         subtComp = [(aSubt.indexes[ii], dev) for (ii, dev) in enumerate(aSubt.deviations)]
-        for ((compIdx, compDev), (solIdx, solDev)) in pair.(subtComp,subtSol)
+        for ((compIdx, compDev), (solIdx, solDev)) in tuple.(subtComp,subtSol)
             @test compIdx == solIdx
             @test compDev ≈ solDev
         end
@@ -109,10 +123,10 @@ end
     @testset "affine negative" begin
         aNeg = -a2
         @test aNeg[0] == -center2
-        negSol = pair.(ind2, -dev2)
+        negSol = tuple.(ind2, -dev2)
         @test length(aNeg) == length(aNeg.indexes) == length(negSol)
         negComp = [(aNeg.indexes[ii], dev) for (ii, dev) in enumerate(aNeg.deviations)]
-        for ((compIdx, compDev), (solIdx, solDev)) in pair.(negComp,negSol)
+        for ((compIdx, compDev), (solIdx, solDev)) in tuple.(negComp,negSol)
             @test compIdx == solIdx
             @test compDev ≈ solDev
         end
