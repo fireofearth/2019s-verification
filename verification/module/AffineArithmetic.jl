@@ -11,6 +11,8 @@ module AffineArithmetic
  # - Julia operations rely on the use of the `last` index to
  # keep track of indeterminate coefficients
  #
+ # TODO: rename AAF => Affine
+ # TODO: documentation?
  # TODO: aaflib arithmetic functions +,-,*,/
  # TODO: aaflib trig. functions sin, cos
  # TODO: aaflib power functions pow, ^
@@ -34,7 +36,7 @@ import Base:
     <, <=, >, >=, ==, +, -, *, /, inv
 
 export
-    AAFCoeff, AAFInd, ApproximationType, AAF,
+    AAFCoeff, AAFInd, AAF,
     getindex, length, repr, firstindex, lastindex,
     <, <=, >, >=,
     Interval,
@@ -42,15 +44,23 @@ export
     ==, +, -, *, /
 
 # TODO: testing only
-export getLastAAFIndex, resetLastAAFIndex
+export getLastAAFIndex, resetLastAAFIndex, ApproximationType
 
+ #=
+ # Module-wide constants
+ #
+ # TODO: are we using the right constants?
+=#
+@enum ApproximationType MINRANGE CHEBYSHEV SECANT
+TOL = 1E-15
+EPSILON = 1E-20
 
  #=
  # Type declarations
 =#
 AAFCoeff = Float64
 AAFInd = Int64
-@enum ApproximationType MINRANGE CHEBYSHEV SECANT
+approximationType = CHEBYSHEV
 
  #=
  # last keeps record of last coefficient index of affine forms accoss all AAF instances.
@@ -242,7 +252,6 @@ lastindex(a::AAF)  = length(a) > 0 ? last(a.indexes) : 0
  # TODO: is it better to use ≈ instead?
  # TODO: refactor length out
 =#
-TOL = 1E-15
 function ==(a::AAF, p::AAF)
     if(length(a) != length(p))
         return false
@@ -381,10 +390,26 @@ function *(a::AAF, p::AAF)::AAF
     return AAF(a[0]*p[0] + 0.5*adjCenter2, devt, indt)
 end
 
-function inv(a::AAF)::AAF
-    if(length(a) == 0)
-        return AAF(1.0 / a[0])
+ #=
+ # 1/a where a is AAF
+=#
+function inv(p::AAF)::AAF
+    if(length(p) == 0)
+        return AAF(1.0 / p[0])
     end
+
+    a = p[0] - r;
+    b = p[0] + r;
+    if(a*b < EPSILON)
+        throw(DomainError(p, "trying to invert zero"))
+    end
+
+    inva = 1. / b
+    invb = 1. / b
+
+    if(approximationType = CHEBYSHEV)
+        asdf
+
 end
 
 function /(a::AAF, P::AAF)::AAF
