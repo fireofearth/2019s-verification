@@ -131,18 +131,9 @@ struct AAF
 
      #=
      # Creates an AAF with deviations
-     # TODO: not sure if dev, ind that are longer than t in aaflib is applicable
-     # TODO: what if t > length(dev) ?
-     # TODO: get rid of l; clean up comments
+     # TODO: check viability of removint 't' from constructor
+     # TODO: manage assertions in dev/production versioning
     =#
-    #AAF(v0::AAFCoeff, dev::Vector{AAFCoeff}, ind::Vector{AAFCoeff}, t:Unsigned) = new(
-    #    v0, t, t, dev[1:t], setLastAFFIndex(ind[1:t])
-    #)
-    #function AAF(v0::AAFCoeff, dev::Vector{AAFCoeff}, ind::Vector{AAFInd}, l::Int)
-    #    @assert length(ind) == l
-    #    @assert length(dev) == l
-    #    new(v0, l, l, dev, setLastAAFIndex(ind))
-    #end
     function AAF(v0::AAFCoeff, dev::Vector{AAFCoeff}, ind::Vector{AAFInd})
         @assert length(ind) == length(dev)
         for ii in 1:(length(ind) - 1)
@@ -207,6 +198,11 @@ function repr(a::AAF)
     return s
 end
 
+ #=
+ # Get the total deviation of an AAF (i.e. the sum of all deviations (their abs value))
+=#
+rad(a::AAF)::AAFCoeff = sum(abs.(a.deviations))
+
 Interval(a::AAF) = Interval(a[0] - rad(a), a[0] + rad(a))
 
  #=
@@ -214,11 +210,6 @@ Interval(a::AAF) = Interval(a[0] - rad(a), a[0] + rad(a))
  # Specification: convert_int, reduce_aaf, rad
  # TODO: implement
 =#
-
- #=
- # Get the total deviation of an AAF (i.e. the sum of all deviations (their abs value))
-=#
-rad(a::AAF)::AAFCoeff = sum(abs.(a.deviations))
 
   #=
   # Get maximum / minimum of an AAF
@@ -291,8 +282,8 @@ end
 +(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst + a[0])
 -(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst - a[0])
 
-*(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a[0] * cst, cst * deviations)
-*(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst * a[0], cst * deviations)
+*(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a[0] * cst, cst * a.deviations)
+*(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst * a[0], cst * a.deviations)
 
 function /(a::AAF, cst::AAFCoeff)::AAF
     @assert cst != 0.0
@@ -313,6 +304,7 @@ function +(a::AAF, p::AAF)::AAF
     devt = fill(0.0, length(indt)) #  Vector(undef,length(indt))
     pcomp = tuple.(indexin(indt, a.indexes), indexin(indt, p.indexes))
     for (ii, (ia,ip)) in enumerate(pcomp)
+        @assert ia != nothing || ip != nothing
         devt[ii] = (ia == nothing ? p[ip] : 
          (ip == nothing ? a[ia] : a[ia] + p[ip]))
     end
@@ -333,6 +325,7 @@ function -(a::AAF, p::AAF)::AAF
     devt = fill(0.0, length(indt)) #  Vector(undef,length(indt))
     pcomp = tuple.(indexin(indt, a.indexes), indexin(indt, p.indexes))
     for (ii, (ia,ip)) in enumerate(pcomp)
+        @assert ia != nothing || ip != nothing
         devt[ii] = (ia == nothing ? -p[ip] : 
          (ip == nothing ? a[ia] : a[ia] - p[ip]))
     end
@@ -345,36 +338,47 @@ end
 
  #=
  # Approximates a * p where a, p are AAF
+ # There are three affine products based on the appoximation of the coefficient for μₖ
+ #   xy = x₀ŷ₀ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + ½∑[over 1⩽i,j⩽n] |xᵢyⱼ+yᵢxⱼ|μₖ
+ #   xy = x₀ŷ₀ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + (∑ᴺᵢ|xᵢ|)(∑ᴺᵢ|yᵢ|)μₖ
+ #   xy = x₀ŷ₀ + ½∑ᴺᵢxᵢyᵢ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + [(∑ᴺᵢ|xᵢ|)(∑ᴺᵢ|yᵢ|) - ½∑ᴺᵢ|xᵢyᵢ|]μₖ
+ # The last approximation is obtainable by observing that for products of like terms 
+ # we have squares of noise symbols: xᵢyᵢϵᵢ² 
+ # Since ϵᵢ² ∈ [0,1] the term has a center at ½xᵢyᵢ with magnitude of deviation ½|xᵢyᵢ|
  #
  # Specification:
- #
- # TODO: there are various multiplication forms
- #   xy = x₀ŷ₀ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + ½∑[over 1⩽i,j⩽n] |xᵢyⱼ+yᵢxⱼ|μₖ
- #   xy = x₀ŷ₀ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + (∑ᴺᵢ|xᵢ|)(∑ᴺᵢ|yᵢ|)μₖ (using this one)
- #
- # TODO: aaflib uses an unknown approximation method for μₖ
+ #   xy = x₀ŷ₀ + ½∑ᴺᵢxᵢyᵢ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + [(∑ᴺᵢ|xᵢ|)(∑ᴺᵢ|yᵢ|) - ½∑ᴺᵢ|xᵢyᵢ|]μₖ
 =#
-function *(a::AAF, P::AAF)::AAF
+function *(a::AAF, p::AAF)::AAF
     if(length(p) == 0)
         return a * p[0]
     elseif(length(a) == 0)
         return a[0] * p
     end
     # create new index with length = length(a.indexes) + length(p.indexes) + 1
-    indt = sort([ii for ii in union(a.indexes, p.indexes)])
-    indt = addAAFIndex(indt)
+    adjDeviation2 = 0.0
+    adjCenter2    = 0.0
+    indt  = [ii for ii in union(a.indexes, p.indexes)]
+    sort!(indt)
+    indt  = addAAFIndex(indt)
     lindt = length(indt)
     devt  = fill(0.0, lindt)
     pcomp = tuple.(indexin(indt, a.indexes), indexin(indt, p.indexes))
     for (ii, (ia,ip)) in enumerate(pcomp)
-        devt[ii] = (ia == nothing ? a[0] * p[ip] : 
-                    (ip == nothing ? a[ia] * p[0] : 
-                     a[ia] * p[0] + a[0] * p[ip]))
-        #devt[lindt] += (ia == nothing || ip == nothing) ? 0 :
-        #                    a[ia] * p[ip]
+        if(ia == nothing && ip == nothing) # happens at the end of indt
+            # do nothing
+        elseif(ia == nothing)
+            devt[ii] = a[0] * p[ip]
+        elseif(ip == nothing)
+            devt[ii] = a[ia] * p[0]
+        else
+            devt[ii] = a[ia] * p[0] + a[0] * p[ip]
+            adjDeviation2 = abs(a[ia] * p[ip])
+            adjCenter2    = a[ia] * p[ip]
+        end
     end
-    devt[lindt] = rad(a) * rad(p)
-    return AAF(a[0] * p[0], devt, indt)
+    devt[lindt] = rad(a)*rad(p) - 0.5*adjDeviation2
+    return AAF(a[0]*p[0] + 0.5*adjCenter2, devt, indt)
 end
 
 function inv(a::AAF)::AAF
