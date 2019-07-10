@@ -6,12 +6,9 @@ include("Affine.jl")
 
  #=
  # Initial variables of ODE problem
- #
- # TODO: it is not clear whether jacdim = sysdim in RINO
 =#
 struct ODEInitVar
     sysdim::Unsigned
-    jacdim::Unsigned
     numSubdiv::Unsigned
     tBegin::AbstractFloat
     tEnd::AbstractFloat
@@ -28,7 +25,7 @@ struct ODEInitVar
      #=
      # Initialize variables where inputs types are not specified
     =#
-    function ODEInitVar(sysdim::Unsigned, jacdim::Unsigned, nb_subdiv_init::Unsigned, t_begin::AbstractFloat, t_end::AbstractFloat, tau::AbstractFloat, order::Unsigned, inputs::NTuple{<:AbstractInterval})
+    function ODEInitVar(sysdim::Unsigned, nb_subdiv_init::Unsigned, t_begin::AbstractFloat, t_end::AbstractFloat, tau::AbstractFloat, order::Unsigned, inputs::NTuple{<:AbstractInterval})
         numInputs = length(inputs)
         new(sysdim, jacdim, nb_subdiv_init, t_begin, t_end, tau, order, inputs,
             Tuple(false for i=1:numInputs),
@@ -74,7 +71,7 @@ function getInitialVar(o::ODEFunc)::ODEInitVar
     if(o.p == NN)
         error("ODEFunc contains no problem")
     elseif(o.p == BRUSSELATOR)
-        return ODEInitVar( 2, 2, 1, 0.05, 0, 10., 4,
+        return ODEInitVar( 2, 1, 0.05, 0, 10., 4,
                       ( Interval(0.9, 1), Interval(0, 0.1) ))
     else
         error("ODEFunc no problem specified")
