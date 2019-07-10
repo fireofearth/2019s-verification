@@ -52,9 +52,25 @@ end
  #=
  # (Initial) values for problem instance
  #
+ #
+ # 
+ #
  # TODO: finish ODEFunc, add more problems
 =#
 function getInitialVar(o::ODEFunc)::ODEInitVar
+     #=
+     # Assigns values to the following:
+     #
+     # ODEInitVar.sysdim::Unsigned
+     # ODEInitVar.jacdim::Unsigned
+     # ODEInitVar.nb_subdiv_init::Unsigned
+     # ODEInitVar.t_begin::AbstractFloat
+     # ODEInitVar.t_end::AbstractFloat
+     # ODEInitVar.tau::AbstractFloat
+     # ODEInitVar.order::Unsigned
+     # ODEInitVar.inputs::NTuple{<:AbstractInterval})
+     #
+    =#
     if(o.p == NN)
         error("ODEFunc contains no problem")
     elseif(o.p == BRUSSELATOR)

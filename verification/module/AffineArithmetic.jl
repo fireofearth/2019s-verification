@@ -52,6 +52,7 @@ export getLastAAFIndex, resetLastAAFIndex, ApproximationType
  # TODO: are we using the right constants?
 =#
 @enum ApproximationType MINRANGE CHEBYSHEV SECANT
+MINRAD = 1E-10
 TOL = 1E-15
 EPSILON = 1E-20
 
@@ -224,6 +225,7 @@ Interval(a::AAF) = Interval(a[0] - rad(a), a[0] + rad(a))
   #=
   # Get maximum / minimum of an AAF
  =#
+getCenter(a::AAF) = a[0]
 getMax(a::AAF)::AAFCoeff = a[0] + rad(a)
 getMin(a::AAF)::AAFCoeff = a[0] - rad(a)
 getAbsMax()::AAFCoeff = max(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
@@ -408,8 +410,24 @@ function inv(p::AAF)::AAF
     invb = 1. / b
 
     if(approximationType = CHEBYSHEV)
-        asdf
+        if(r > MINRAD)
+            alpha = (invb - inva) / (b - a)
+        else
+            alpha = inva
+        end
+        u = log(alpha)
+        delta = 0.5*(inva + (u - a - 1.0)*alpha)
+        dzeta = inva - a*alpha - delta
+    elseif(approximationType = MINRANGE)
+        error("incomplete")
+    else # if(approximationType = SECANT)
+        error("incomplete")
+    end
 
+    indt = addAAFIndex(p.indexes)
+    devt = alpha * p.deviations
+    devt = vcat(devt, delta)
+    return AAF(alpha*p[0] + dzeta, devt, indt)
 end
 
 function /(a::AAF, P::AAF)::AAF
