@@ -1,6 +1,6 @@
 include("./helper.jl")
 
-localModulePath = "/home/fireofearth/Research/mitchell-ian/2019s-verification/verification/module"
+localModulePath = "/home/fireofearth/res/mitchell-ian/2019s-verification/verification/module"
 if(!(localModulePath in LOAD_PATH))
     push!(LOAD_PATH, localModulePath)
 end
@@ -61,24 +61,99 @@ end
  # TODO: 
 =#
 
-@testset "affine arithmetic unitary" begin
-    center1 = 100.001
-    dev1    = [2.0, 1.0, -5.0, 4.0]
-    ind1    = [1  , 3  ,  4,   6]
-    a1 = AAF(center1, dev1, ind1)
-    @test a1[0] == center1
-    for ii in 1:4
-        @test a1[ii] == dev1[ii]
-        @test a1.indexes[ii] == ind1[ii]
+@testset "affine arithmetic" begin
+    @testset "basic" begin
+        center = 3.14
+        dev    = [0.75, 0.01]
+        ind    = [1, 3]
+        a = AAF(center, dev, ind)
+        aOne = one(a)
+        aZero = zero(a)
+        @test a*aOne == a == aOne*a
+        @test a + aZero == a == aZero + a
     end
-    @test rad(a1) == 2.0 + 1.0 + 5.0 + 4.0
-    @test length(a1) == 4
-    @test Interval(a1) == Interval(a1[0] - rad(a1), a1[0] + rad(a1))
-end
 
-@testset "affine arithmetic hardcoded" begin
-    @testset "affine * affine" begin
+    @testset "unitary" begin
+        center1 = 100.001
+        dev1    = [2.0, 1.0, -5.0, 4.0]
+        ind1    = [1  , 3  ,  4,   6]
+        a1 = AAF(center1, dev1, ind1)
+        @test a1[0] == center1
+        for ii in 1:4
+            @test a1[ii] == dev1[ii]
+            @test a1.indexes[ii] == ind1[ii]
+        end
+        @test rad(a1) == 2.0 + 1.0 + 5.0 + 4.0
+        @test length(a1) == 4
+        @test Interval(a1) == Interval(a1[0] - rad(a1), a1[0] + rad(a1))
+    end
 
+    @testset "equality" begin
+        center1 = 1.321
+        dev1    = [2.1, 0.0, 1.5, -5.3, 4.2]
+        ind1    = [1  , 2,   5  ,  7,   8]
+        a1 = AAF(center1, dev1, ind1)
+        center2 = 1.321
+        dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
+        ind2    = [1  , 2,   5  ,  7,   8]
+        a2 = AAF(center2, dev2, ind2)
+
+        @test a1 == a2
+        ind1[2] = 3
+        a1 = AAF(center1, dev1, ind1)
+        @test a1 != a2
+        ind1[2] = 2
+        a1 = AAF(center1, dev1, ind1)
+        @test a1 == a2
+        dev1[3] = 0.5
+        a1 = AAF(center1, dev1, ind1)
+        @test a1 != a2
+        dev1[3] = 1.5
+        a1 = AAF(center1, dev1, ind1)
+        @test a1 == a2
+    end
+
+    @testset "equality boundary conds" begin
+        center1 = 1.321
+        dev1    = [2.1, 0.0, 1.5, -5.3, 4.0]
+        ind1    = [1  , 2,   5  ,  7,   8]
+        a1 = AAF(center1, dev1, ind1)
+        center2 = 1.321
+        dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
+        ind2    = [1  , 2,   5  ,  7,   8]
+        a2 = AAF(center2, dev2, ind2)
+
+        @test a1 != a2
+        dev1    = [2.1, 0.0, 1.5, -5.3, 4.2]
+        ind1    = [1  , 2,   5  ,  7,   9]
+        a1 = AAF(center1, dev1, ind1)
+        dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
+        ind2    = [1  , 2,   5  ,  7,   8]
+        a2 = AAF(center2, dev2, ind2)
+        @test a1 != a2
+        dev1    = [1.1, 0.0, 1.5, -5.3, 4.2]
+        ind1    = [1  , 2,   5  ,  7,   8]
+        a1 = AAF(center1, dev1, ind1)
+        dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
+        ind2    = [1  , 2,   5  ,  7,   8]
+        a2 = AAF(center2, dev2, ind2)
+        @test a1 != a2
+        dev1    = [2.1, 0.0, 1.5, -5.3, 4.2]
+        ind1    = [2  , 3,   5  ,  7,   8]
+        a1 = AAF(center1, dev1, ind1)
+        dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
+        ind2    = [1  , 3,   5  ,  7,   8]
+        a2 = AAF(center2, dev2, ind2)
+        @test a1 != a2
+        center1 = 0.321
+        dev1    = [2.1, 0.0, 1.5, -5.3, 4.2]
+        ind1    = [1  , 2,   5  ,  7,   8]
+        a1 = AAF(center1, dev1, ind1)
+        center2 = 1.321
+        dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
+        ind2    = [1  , 2,   5  ,  7,   8]
+        a2 = AAF(center2, dev2, ind2)
+        @test a1 != a2
     end
 end
 

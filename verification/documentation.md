@@ -124,6 +124,17 @@ ODEIntegration
 
 #### Automatic differentiation
 
+[Cassette](https://jrevels.github.io/Cassette.jl/latest/whycassette.html) was originally designed for better language support for automatic differentiation.
+[AutoGrad](https://github.com/denizyuret/AutoGrad.jl) is a port of Python [autograd](https://github.com/HIPS/autograd). I'm avoiding this package due to lack of documentation
+
+Both [AutoDiffSource](https://github.com/gaika/AutoDiffSource.jl) and ReverseDiffSource are deprecated and limited to Julia version 0.5 (and hence in JuliaAttic)
+
+By the process of elimination [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl) is the one I will be using. I have to modify the source code so that we support Affine types. In addition Affine must support the following:
+
+`one` - return a multiplicative identity for x: a value such that one(x)\*x == x\*one(x) == x. Alternatively one(T) can take a type T, in which case one returns a multiplicative identity for any x of type T.
+
+`isone` - return true if x == one(x) if x is an array, this checks whether x is an identity matrix.
+
 ### Procedure
 
 I am only implementing RINO for ODE functions, and am skipping DDE for now.
@@ -135,7 +146,7 @@ Step 2: preallocates the J, x, xCenter
 Step 3: loop in solveODE
 
 Step 3.2: obtain the center of the inputs, and eps
-
+    
 Step 3.3: set initial values for J, x, xCenter
 
 Step 3.4 set initial ODE system

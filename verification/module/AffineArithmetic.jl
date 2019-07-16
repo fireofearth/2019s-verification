@@ -32,11 +32,13 @@ import IntervalArithmetic: Interval
 import IntervalArithmetic: inf, sup
 
 import Base:
+    zero, one, iszero, isone, convert,
     getindex, length, repr, size, firstindex, lastindex,
     <, <=, >, >=, ==, +, -, *, /, inv
 
 export
     AAFCoeff, AAFInd, AAF,
+    convert,
     getindex, length, repr, firstindex, lastindex,
     <, <=, >, >=,
     Interval,
@@ -209,6 +211,12 @@ function repr(a::AAF)
     return s
 end
 
+convert(::Type{AAF}, x::Number) = AAF(x)
+one(::Type{AAF}) = convert(AAF, 1.)
+one(x::AAF) = convert(AAF, 1.)
+zero(::Type{AAF}) = convert(AAF, 0.)
+zero(x::AAF) = convert(AAF, 0.)
+
  #=
  # Get the total deviation of an AAF (i.e. the sum of all deviations (their abs value))
 =#
@@ -233,6 +241,11 @@ getAbsMin()::AAFCoef  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 
 firstindex(a::AAF) = length(a) > 0 ? a.indexes[1] : 0
 lastindex(a::AAF)  = length(a) > 0 ? last(a.indexes) : 0 
+
+#zero(x::DataType) = 
+#one
+#iszero
+#isone
 
  #=
  # Unknown methods
@@ -430,19 +443,73 @@ function inv(p::AAF)::AAF
     return AAF(alpha*p[0] + dzeta, devt, indt)
 end
 
-function /(a::AAF, P::AAF)::AAF
-    #
+/(cst::AAFCoeff, a::AAF) = cst * inv(a)
+/(a::AAF, cst::AAFCoeff) = AAF(a, a[0] / cst, a.deviations / cst)
+/(a::AAF, p::AAF)::AAF   = a * inv(p)
+
+function ^(p::AAF, n::Int)
+    if(length(p) == 0)
+        return AAF(p[0]^n)
+    end
+
+    if(n == 0)
+        return one(AAF)
+    elseif(n == 1)
+        return p
+    elseif(n == -1)
+        return inv(p)
+    end
+    
+    r = rad(p)
+    a = p[0] - r
+    b = p[0] + r
+    pa = a^n
+    pb = b^n
+    if(a*b < EPSILON && n < 0)
+        throw(DomainError(p, "trying to invert zero"))
+    end
+
+    if(approximationType = CHEBYSHEV)
+        if(r > MINRAD)
+            alpha = (pb - pa) / (b - a)
+        else
+            alpha = n * pa / (a + EPSILON)
+        end
+
+        xₐ = - abs(alpha / n)^(1 / (n - 1))
+        xᵦ = -xₐ
+
+        if(xₐ > a)
+            pxₐ = xₐ^n
+        else
+            xₐ  = a
+            pxₐ = pa
+        end
+
+        if(xᵦ < b)
+            pxᵦ = xᵦ^n
+        else
+            xᵦ = b
+            pxᵦ = pb
+        end
+
+        yₐ= pxₐ - alpha*xₐ
+        yᵦ= pxᵦ - alpha*xᵦ
+        delta = 0.5*(yₐ - yᵦ)
+        dzeta = 0.5*(yₐ + yᵦ)
+
+    elseif(approximationType = MINRANGE)
+        error("incomplete")
+    else # if(approximationType = SECANT)
+        error("incomplete")
+    end
+
+    indt = addAAFIndex(p.indexes)
+    devt = alpha * p.deviations
+    devt = vcat(devt, delta)
+    return AAF(alpha*p[0] + dzeta, devt, indt)
 end
 
 #function ^(a::AAF) const;
-#function ^(const int) const;
-#function -(a::AAF) const;
-#function *(double);
-#function /(double) const;
-
-#AAF operator * (double, const AAF);
-#AAF operator / (double, const AAF);
-#AAF operator + (double, const AAF);
-#AAF operator - (double, const AAF);
 
 end # module AffineArithmetic
