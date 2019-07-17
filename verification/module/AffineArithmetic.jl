@@ -32,13 +32,13 @@ import IntervalArithmetic: Interval
 import IntervalArithmetic: inf, sup
 
 import Base:
-    zero, one, iszero, isone, convert,
+    zero, one, iszero, isone, convert, isapprox,
     getindex, length, repr, size, firstindex, lastindex,
     <, <=, >, >=, ==, +, -, *, /, inv
 
 export
     AAFCoeff, AAFInd, AAF,
-    convert,
+    zero, one, convert, isapprox,
     getindex, length, repr, firstindex, lastindex,
     <, <=, >, >=,
     Interval,
@@ -62,14 +62,18 @@ EPSILON = 1E-20
  # Type declarations
 =#
 AAFCoeff = Float64
+#AAFCoeff = Real
 AAFInd = Int64
 approximationType = CHEBYSHEV
+
+disp(msg) = print("$(msg)\n")
+debug() = print("DEBUG\n")
 
  #=
  # last keeps record of last coefficient index of affine forms accoss all AAF instances.
  #
  # Specification:
- # - force setLastAFFIndex to call whenever a new AAF instance is created.
+ # - force setLastAAFIndex to call whenever a new AAF instance is created.
  #
  # TODO: turn this into a decorator/macro and force calls
  # TODO: which functions is `last` for exactly?
@@ -263,21 +267,20 @@ lastindex(a::AAF)  = length(a) > 0 ? last(a.indexes) : 0
 
  #=
  # Equality
- # Specification: affine equality compares cvalues, and deviations TOL=1E-15
- # TODO: is it better to use ≈ instead?
- # TODO: refactor length out
+ # Specification: affine equality compares cvalues, and deviations up to
+ # some tolerance which defaults to TOL
 =#
-function ==(a::AAF, p::AAF)
+function equalityInterval(a::AAF, p::AAF; tol::Float64=TOL)
     if(length(a) != length(p))
         return false
     end
 
     if(abs(a[0]) < 1 && abs(p[0]) < 1)
-        if(abs(a[0] - p[0]) > TOL)
+        if(abs(a[0] - p[0]) > tol)
             return false
         end
     else
-        if(abs((a[0] - p[0]) / (a[0] + p[0])) > TOL)
+        if(abs((a[0] - p[0]) / (a[0] + p[0])) > tol)
             return false
         end
     end
@@ -287,18 +290,23 @@ function ==(a::AAF, p::AAF)
             return false
         end
         if(abs(a[i]) < 1 && abs(p[i]) < 1)
-            if(abs(a[i] - p[i]) > TOL)
+            if(abs(a[i] - p[i]) > tol)
                 return false
             end
         else
-            if(abs((a[i] - p[i]) / 
-                   (a[i] + p[i])) > TOL)
+            if(abs(a[i] - p[i]) / 
+                   (abs(a[i]) + abs(p[i])) > tol)
                 return false
             end
         end
     end
     
     return true
+end
+
+==(a::AAF, p::AAF) = equalityInterval(a, p)
+function isapprox(a::AAF, p::AAF; tol::Float64=TOL)
+    return equalityInterval(a, p; tol=tol)
 end
 
 +(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a[0] + cst)
@@ -406,34 +414,39 @@ function *(a::AAF, p::AAF)::AAF
 end
 
  #=
- # 1/a where a is AAF
+ # Obtain 1/a where a is AAF
+ # TODO: explain how this works?
 =#
 function inv(p::AAF)::AAF
     if(length(p) == 0)
         return AAF(1.0 / p[0])
     end
 
+    r = rad(p)
     a = p[0] - r;
     b = p[0] + r;
     if(a*b < EPSILON)
         throw(DomainError(p, "trying to invert zero"))
     end
 
-    inva = 1. / b
+    inva = 1. / a
     invb = 1. / b
 
-    if(approximationType = CHEBYSHEV)
-        if(r > MINRAD)
-            alpha = (invb - inva) / (b - a)
+    if(approximationType == CHEBYSHEV)
+        alpha = -inva * invb
+        u = sqrt(a * b)
+
+        if(a > 0)
+            delta = 0.5*(inva + invb - 2.0/u)
+            dzeta = inva + invb - delta
         else
-            alpha = inva
+            delta = -0.5*(inva + invb + 2.0/u)
+            dzeta = inva + invb + delta
         end
-        u = log(alpha)
-        delta = 0.5*(inva + (u - a - 1.0)*alpha)
-        dzeta = inva - a*alpha - delta
-    elseif(approximationType = MINRANGE)
+        
+    elseif(approximationType == MINRANGE)
         error("incomplete")
-    else # if(approximationType = SECANT)
+    else # if(approximationType == SECANT)
         error("incomplete")
     end
 
@@ -444,9 +457,12 @@ function inv(p::AAF)::AAF
 end
 
 /(cst::AAFCoeff, a::AAF) = cst * inv(a)
-/(a::AAF, cst::AAFCoeff) = AAF(a, a[0] / cst, a.deviations / cst)
 /(a::AAF, p::AAF)::AAF   = a * inv(p)
 
+ #=
+ # Obtain a^n where a is AAF and n is an integer
+ # TODO: explain how this works?
+=#
 function ^(p::AAF, n::Int)
     if(length(p) == 0)
         return AAF(p[0]^n)
@@ -469,7 +485,7 @@ function ^(p::AAF, n::Int)
         throw(DomainError(p, "trying to invert zero"))
     end
 
-    if(approximationType = CHEBYSHEV)
+    if(approximationType == CHEBYSHEV)
         if(r > MINRAD)
             alpha = (pb - pa) / (b - a)
         else
@@ -498,9 +514,9 @@ function ^(p::AAF, n::Int)
         delta = 0.5*(yₐ - yᵦ)
         dzeta = 0.5*(yₐ + yᵦ)
 
-    elseif(approximationType = MINRANGE)
+    elseif(approximationType == MINRANGE)
         error("incomplete")
-    else # if(approximationType = SECANT)
+    else # if(approximationType == SECANT)
         error("incomplete")
     end
 
@@ -508,6 +524,14 @@ function ^(p::AAF, n::Int)
     devt = alpha * p.deviations
     devt = vcat(devt, delta)
     return AAF(alpha*p[0] + dzeta, devt, indt)
+end
+
+# TODO
+function sin(p::AAF)::AAF
+    if(length(p) == 0)
+        return AAF(sin(p[0]))
+    end
+
 end
 
 #function ^(a::AAF) const;

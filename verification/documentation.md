@@ -1,4 +1,35 @@
 
+
+Two remote repositories:
+
+```
+git remote set-url origin https://github.com/fireofearth/2019s-verification
+git remote set-url origin https://bitbucket.org/ian_mitchell/julia-intervals
+git push origin master
+```
+
+*20190617*
+
+We have the software that was used for Goubault+Putot's last 3 years of research: Robust INner and Outer Approximated Reachability (RINO) [here](https://github.com/cosynus-lix/RINO) as well as the dependencies[FILIB++](http://www2.math.uni-wuppertal.de/wrswt/software/filib.html) for interval computations, and [FADBAD](http://www.fadbad.com/fadbad.html > for automatic diff)
+
+Additionally for Julia (all required components to reproduce RINO for Julia):
+- automatic diff <https://github.com/JuliaDiff/>
+- intervals <https://github.com/JuliaIntervals/IntervalArithmetic.jl>
+- affine arithmetic <https://github.com/JuliaIntervals/AffineArithmetic.jl>
+- taylor models <https://github.com/JuliaIntervals/TaylorModels.jl>
+
+It was used in the latest paper for HSCC 2019 "Inner and Outer Reachability for the Verification of Control Systems"; and the paper we're reading that is HSCC 2017 "Forward inner-approximated reachability of non-linear continuous systems"; and the paper CAV 2018 "Inner and Outer Approximating Flowpipes for Delay Differential Equations".
+
+*20190626*
+
+Affine arithmetic does not seem to be supported (well) in Julia. Interval arithmetic does not have modal interval extensions in Julia. Ian Mitchell (IM) asked me to check with JuliaIntervals to ask whether developers (Dr David P. Sanders, Chris Rackauckas) would be open to contributions from for libraries.
+
+*20190702*
+
+Step 2: for each subdivision
+
+call set_initialconditions (ode_def.cpp) to set x to inputs which are intervals, xCenter which are midpoints of intervals (as floats), and J = Id. Recall x, xCenter and J are all vectors and matrices containing AAF.
+
 ## Original implementation
 
 Good news! We have the software that was used for Goubault+Putot's last 3 years of research: Robust INner and Outer Approximated Reachability (RINO) <https://github.com/cosynus-lix/RINO> as well as the dependencies FILIB++ <http://www2.math.uni-wuppertal.de/wrswt/software/filib.html> for interval computations, and FADBAD <http://www.fadbad.com/fadbad.html> for automatic diff.
@@ -96,6 +127,25 @@ tau (double): the time step
 Step 4: create an ODE object `HybridStep_ode` using `HybridStep_ode::init_ode()`. 
 
 Step 5.1: build Taylor Model using `HybridStep_ode::TM_build()`. 
+
+### Testing
+
+I'm writing a test suite in RINO to test their modification of the aaflib affine arithmetic library
+
+```
+g++ -ggdb -frounding-math -DMAXORDER=40 -I. -I${HOME}/lib/filib-3.0.2/include \
+    -I/usr/include -I$(pwd)/aaflib-0.1 -fpermissive -std=c++11 -c testsuite.cpp
+
+g++ -L/usr/lib -L$(pwd)/aaflib-0.1 -L${HOME}/lib/filib-3.0.2/lib -o testsuite \
+    testsuite.o -laaf -lprim -lgsl -llapack -lblas -lcblas -lstdc++ \
+    -lboost_unit_test_framework
+
+./testsuite --log_level=test_suite
+
+# in the case that the testsuite does not detect libaaf.so we need to add the library path for this shared resource.
+LD_LIBRARY_PATH=/usr/lib:/home/fireofearth/res/mitchell-ian/programs/rino-hscc17/aaflib-0.1/
+export LD_LIBRARY_PATH
+```
 
 ## Julia RINO implementation
 

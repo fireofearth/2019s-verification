@@ -155,6 +155,24 @@ end
         a2 = AAF(center2, dev2, ind2)
         @test a1 != a2
     end
+
+    # RINO uses CHEBYSHEV
+    @testset "inverse (hardcode)" begin
+        resetLastAAFIndex()
+        center  = 26.10
+        dev     = [2.11, -3.03, 4.59, 1.0, -10.]
+        ind     = [1,     3,    5,    8,    10]
+        nCenter = 0.06305953707868751
+        nDev    = [-0.00839043, 0.0120488, -0.0182522, -0.00397651, 0.0397651, 0.0407272]
+        nInd    = [ 1,          3,          5,          8,         10,        11]
+        a = AAF(center)
+        @test inv(a) == AAF(1 / center)
+        a = AAF(center, dev, ind)
+        @test isapprox(inv(a), AAF(nCenter, nDev, nInd); tol=10E-8)
+    end
+
+    @testset "power (hardcode)" begin
+    end
 end
 
  #=
