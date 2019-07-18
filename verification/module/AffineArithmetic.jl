@@ -11,20 +11,15 @@ module AffineArithmetic
  # - Julia operations rely on the use of the `last` index to
  # keep track of indeterminate coefficients
  #
- # TODO: rename AAF => Affine
- # TODO: documentation?
- # TODO: aaflib arithmetic functions +,-,*,/
- # TODO: aaflib trig. functions sin, cos
- # TODO: aaflib power functions pow, ^
- # TODO: figure out what changes Goubault/Putot made for
- # aaflib
+ # TODO: finish documentation
+ # TODO: expand arithmetic functions for all subtypes of Real
+ # TODO: aaflib trig. functions sin, cos; requires me to know
+ # what implementation changes Goubault/Putot made for sin, cos
+ # TODO: aaflib pow is supported?
+ # TODO: figure out what changes Goubault/Putot made for aaflib
  # TODO: Goubault/Putot functions mult_eps, hull
+ # TODO: complete + test support for ForwardDiff
 =#
-
-localModulePath = "/home/fireofearth/Research/mitchell-ian/2019s-verification/verification/module"
-if(!(localModulePath in LOAD_PATH))
-    push!(LOAD_PATH, localModulePath)
-end
 
 import IntervalArithmetic: Interval
 
@@ -34,19 +29,19 @@ import IntervalArithmetic: inf, sup
 import Base:
     zero, one, iszero, isone, convert, isapprox,
     getindex, length, repr, size, firstindex, lastindex,
-    <, <=, >, >=, ==, +, -, *, /, inv
+    <, <=, >, >=, ==, +, -, *, /, inv, ^
 
 export
-    AAFCoeff, AAFInd, AAF,
+    AffineCoeff, AffineInd, AffineInt, Affine,
     zero, one, convert, isapprox,
     getindex, length, repr, firstindex, lastindex,
     <, <=, >, >=,
-    Interval,
+    Interval, inf, sup,
     rad, getMax, getMin, getAbsMax, getAbsMin, inv,
-    ==, +, -, *, /
+    ==, +, -, *, /, ^
 
 # TODO: testing only
-export getLastAAFIndex, resetLastAAFIndex, ApproximationType
+export getLastAffineIndex, resetLastAffineIndex, ApproximationType
 
  #=
  # Module-wide constants
@@ -61,34 +56,34 @@ EPSILON = 1E-20
  #=
  # Type declarations
 =#
-AAFCoeff = Float64
-#AAFCoeff = Real
-AAFInd = Int64
-approximationType = CHEBYSHEV
+AffineCoeff = Float64 # type for coefficients and constants
+AffineInt   = Int64 # type for integers
+AffineInd   = Int64 # type for indexes
+approximationType = CHEBYSHEV # default rounding mode
 
 disp(msg) = print("$(msg)\n")
 debug() = print("DEBUG\n")
 
  #=
- # last keeps record of last coefficient index of affine forms accoss all AAF instances.
+ # last keeps record of last coefficient index of affine forms accoss all Affine instances.
  #
  # Specification:
- # - force setLastAAFIndex to call whenever a new AAF instance is created.
+ # - force setLastAffineIndex to call whenever a new Affine instance is created.
  #
  # TODO: turn this into a decorator/macro and force calls
  # TODO: which functions is `last` for exactly?
 =#
-let lastAAFIndex::Int = 0
+let lastAffineIndex::Int = 0
 
-    global function resetLastAAFIndex()
-        lastAAFIndex = 0
+    global function resetLastAffineIndex()
+        lastAffineIndex = 0
     end
 
      #=
      # Similar to getDefault() in aaflib
     =#
-    global function getLastAAFIndex()
-        return lastAAFIndex
+    global function getLastAffineIndex()
+        return lastAffineIndex
     end
 
      #=
@@ -96,83 +91,84 @@ let lastAAFIndex::Int = 0
      # To be used when assigning computation noise.
      # Similar to inclast() in aaflib
     =#
-    global function addAAFIndex()
-        lastAAFIndex += 1
-        return [lastAAFIndex]
+    global function addAffineIndex()
+        lastAffineIndex += 1
+        return [lastAffineIndex]
     end
 
-    global function addAAFIndex(indexes::Vector{AAFInd})
-        lastAAFIndex += 1
-        return vcat(indexes, lastAAFIndex)
+    global function addAffineIndex(indexes::Vector{AffineInd})
+        lastAffineIndex += 1
+        return vcat(indexes, lastAffineIndex)
     end
 
      #=
-     # TODO: finish and make sure this is correct
+     # TODO: test
     =#
-    global function setLastAAFIndex(indexes::Vector{AAFInd})
+    global function setLastAffineIndex(indexes::Vector{AffineInd})
         m = last(indexes)
-        if(m > lastAAFIndex)
-            lastAAFIndex = m
+        if(m > lastAffineIndex)
+            lastAffineIndex = m
         end
         return indexes
     end
 end
 
  #=
- # AAF represents an affine form
+ # Affine represents an affine form
  #
  # Specification:
- # - AAF is a collection with deviations as its elements.
+ # - Affine is a collection with deviations as its elements.
  #
  # Invariants:
- # - AAF indexes are always in sorted order from lowest to highest
- # - elts in AAF indexes are unique
+ # - Affine indexes are always in sorted order from lowest to highest
+ # - elts in Affine indexes are unique
  #
  # TODO: it's not clear whether `length` and `size` are redundant
  # TODO: refactor to get rid of length and size, can query vector length
- # TODO: we don't need to write most getters, since AAF is immutable
+ # TODO: we don't need to write most getters, since Affine is immutable
  # TODO: make this inherit AbstractArrays
  # TODO: enable iterator, indexing
 =#
-struct AAF
-    cvalue::AAFCoeff  # central value 
+struct Affine <: Real
+    cvalue::AffineCoeff  # central value 
     #length::Int # length of indexes 
     #size::Int   # array size of indexes and deviations
-    deviations::Vector{AAFCoeff}
-    indexes::Vector{AAFInd}
+    deviations::Vector{AffineCoeff}
+    indexes::Vector{AffineInd}
 
      #=
-     # Creates an AAF without deviations.
+     # Creates an Affine without deviations.
     =#
-    AAF(v0::AAFCoeff = 0.0) = new(v0, Vector{AAFCoeff}(), Vector{AAFInd}())
+    Affine(v0::AffineCoeff = 0.0) = new(v0, Vector{AffineCoeff}(), Vector{AffineInd}())
+    Affine(v0::AffineInt) = new(AffineCoeff(v0), Vector{AffineCoeff}(), Vector{AffineInd}())
 
      #=
-     # Creates an AAF with deviations
-     # TODO: check viability of removint 't' from constructor
+     # Creates an Affine with deviations
+     # TODO: check viability of removing 't' from constructor
      # TODO: manage assertions in dev/production versioning
     =#
-    function AAF(v0::AAFCoeff, dev::Vector{AAFCoeff}, ind::Vector{AAFInd})
+    function Affine(v0::AffineCoeff, dev::Vector{AffineCoeff}, ind::Vector{AffineInd})
         @assert length(ind) == length(dev)
         for ii in 1:(length(ind) - 1)
             @assert ind[ii] <= ind[ii + 1]
         end
-        new(v0, dev, setLastAAFIndex(ind))
+        new(v0, dev, setLastAffineIndex(ind))
     end
     
      #=
      # Constructor from intervals
     =#
-    AAF(iv::Interval) = new(mid(iv), [radius(iv)], addAAFIndex())
+    Affine(iv::Interval) = new(mid(iv), [radius(iv)], addAffineIndex())
 
      #=
-     # Constructor that assigns new center to AAF
+     # Constructor that assigns new center to Affine
     =#
-    AAF(a::AAF, cst::AAFCoeff) = new(cst, a.deviations, a.indexes)
+    Affine(a::Affine, cst::AffineCoeff) = new(cst, a.deviations, a.indexes)
 
      #=
-     # Constructor that assigns new center, and diff to AAF. We assume indexes unchanged
+     # Constructor that assigns new center, and diff to Affine. We assume indexes unchanged
     =#
-    function AAF(a::AAF, cst::AAFCoeff, dev::Vector{AAFCoeff})
+    function Affine(a::Affine, cst::AffineCoeff, dev::Vector{AffineCoeff})
         @assert length(dev) == length(a.deviations)
         new(cst, dev, a.indexes)
     end
@@ -180,18 +176,12 @@ end
 
  #=
  # Copy constructor are implicitly supported
- # similar to `function AAF(p::AAF)`
+ # similar to `function Affine(p::Affine)`
  #
  # Julia has no explicit type assigning, so we skip all assignment overloading.
 =#
 
-# current approximation type: <CHEBYSHEV> (default), <MINRANGE> or <SECANT> 
-# approximationType::tApproximationType
-
-# highest deviation symbol in use
-# last::Int
-
-function getindex(a::AAF, ind::Int)::AAFCoeff
+function getindex(a::Affine, ind::Int)::AffineCoeff
     if(ind < 0 || ind > length(a.deviations))
         return 0.0
     elseif(ind == 0)
@@ -201,11 +191,11 @@ function getindex(a::AAF, ind::Int)::AAFCoeff
     end
 end
 
-function length(a::AAF)
+function length(a::Affine)
     return length(a.deviations)
 end
 
-function repr(a::AAF)
+function repr(a::Affine)
     s = "$(a[0])"
     if(length(a) > 0)
         for i in 1:length(a)
@@ -215,18 +205,18 @@ function repr(a::AAF)
     return s
 end
 
-convert(::Type{AAF}, x::Number) = AAF(x)
-one(::Type{AAF}) = convert(AAF, 1.)
-one(x::AAF) = convert(AAF, 1.)
-zero(::Type{AAF}) = convert(AAF, 0.)
-zero(x::AAF) = convert(AAF, 0.)
+convert(::Type{Affine}, x::Number) = Affine(x)
+one(::Type{Affine}) = convert(Affine, 1.)
+one(x::Affine) = convert(Affine, 1.)
+zero(::Type{Affine}) = convert(Affine, 0.)
+zero(x::Affine) = convert(Affine, 0.)
 
  #=
- # Get the total deviation of an AAF (i.e. the sum of all deviations (their abs value))
+ # Get the total deviation of an Affine (i.e. the sum of all deviations (their abs value))
 =#
-rad(a::AAF)::AAFCoeff = sum(abs.(a.deviations))
+rad(a::Affine)::AffineCoeff = sum(abs.(a.deviations))
 
-Interval(a::AAF) = Interval(a[0] - rad(a), a[0] + rad(a))
+Interval(a::Affine) = Interval(a[0] - rad(a), a[0] + rad(a))
 
  #=
  # Goubault+Putot methods
@@ -235,16 +225,16 @@ Interval(a::AAF) = Interval(a[0] - rad(a), a[0] + rad(a))
 =#
 
   #=
-  # Get maximum / minimum of an AAF
+  # Get maximum / minimum of an Affine
  =#
-getCenter(a::AAF) = a[0]
-getMax(a::AAF)::AAFCoeff = a[0] + rad(a)
-getMin(a::AAF)::AAFCoeff = a[0] - rad(a)
-getAbsMax()::AAFCoeff = max(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
-getAbsMin()::AAFCoef  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
+getCenter(a::Affine) = a[0]
+getMax(a::Affine)::AffineCoeff = a[0] + rad(a)
+getMin(a::Affine)::AffineCoeff = a[0] - rad(a)
+getAbsMax()::AffineCoeff = max(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
+getAbsMin()::AffineCoef  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 
-firstindex(a::AAF) = length(a) > 0 ? a.indexes[1] : 0
-lastindex(a::AAF)  = length(a) > 0 ? last(a.indexes) : 0 
+firstindex(a::Affine) = length(a) > 0 ? a.indexes[1] : 0
+lastindex(a::Affine)  = length(a) > 0 ? last(a.indexes) : 0 
 
 #zero(x::DataType) = 
 #one
@@ -260,17 +250,17 @@ lastindex(a::AAF)  = length(a) > 0 ? last(a.indexes) : 0
   #=
   # Conditionals
  =#
-<(a::AAF,  p::AAF) = (a[0] + rad(a)) <  (p[0] - rad(p))
-<=(a::AAF, p::AAF) = (a[0] + rad(a)) <= (p[0] - rad(p))
->(a::AAF,  p::AAF) = (a[0] - rad(a)) >  (p[0] + rad(p))
->=(a::AAF, p::AAF) = (a[0] - rad(a)) >= (p[0] + rad(p))
+<(a::Affine,  p::Affine) = (a[0] + rad(a)) <  (p[0] - rad(p))
+<=(a::Affine, p::Affine) = (a[0] + rad(a)) <= (p[0] - rad(p))
+>(a::Affine,  p::Affine) = (a[0] - rad(a)) >  (p[0] + rad(p))
+>=(a::Affine, p::Affine) = (a[0] - rad(a)) >= (p[0] + rad(p))
 
  #=
  # Equality
  # Specification: affine equality compares cvalues, and deviations up to
  # some tolerance which defaults to TOL
 =#
-function equalityInterval(a::AAF, p::AAF; tol::Float64=TOL)
+function equalityInterval(a::Affine, p::Affine; tol::Float64=TOL)
     if(length(a) != length(p))
         return false
     end
@@ -304,28 +294,41 @@ function equalityInterval(a::AAF, p::AAF; tol::Float64=TOL)
     return true
 end
 
-==(a::AAF, p::AAF) = equalityInterval(a, p)
-function isapprox(a::AAF, p::AAF; tol::Float64=TOL)
+==(a::Affine, p::Affine) = equalityInterval(a, p)
+
+function isapprox(a::Affine, p::Affine; tol::Float64=TOL)
     return equalityInterval(a, p; tol=tol)
 end
 
-+(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a[0] + cst)
--(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a[0] - cst)
-+(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst + a[0])
--(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst - a[0])
++(a::Affine, cst::AffineCoeff)::Affine = Affine(a, a[0] + cst)
+-(a::Affine, cst::AffineCoeff)::Affine = Affine(a, a[0] - cst)
++(cst::AffineCoeff, a::Affine)::Affine = Affine(a, cst + a[0])
+-(cst::AffineCoeff, a::Affine)::Affine = Affine(a, cst - a[0])
 
-*(a::AAF, cst::AAFCoeff)::AAF = AAF(a, a[0] * cst, cst * a.deviations)
-*(cst::AAFCoeff, a::AAF)::AAF = AAF(a, cst * a[0], cst * a.deviations)
++(a::Affine, cst::AffineInt)::Affine = Affine(a, AffineCoeff(a[0] + cst))
+-(a::Affine, cst::AffineInt)::Affine = Affine(a, AffineCoeff(a[0] - cst))
++(cst::AffineInt, a::Affine)::Affine = Affine(a, AffineCoeff(cst + a[0]))
+-(cst::AffineInt, a::Affine)::Affine = Affine(a, AffineCoeff(cst - a[0]))
 
-function /(a::AAF, cst::AAFCoeff)::AAF
-    @assert cst != 0.0
-    AAF(a, a.cvalue * (1.0 / cst), (1.0 / cst) * deviations)
+*(a::Affine, cst::AffineCoeff)::Affine = Affine(a, a[0] * cst, cst * a.deviations)
+*(cst::AffineCoeff, a::Affine)::Affine = Affine(a, cst * a[0], cst * a.deviations)
+
+*(a::Affine, cst::AffineInt)::Affine = Affine(a, AffineCoeff(a[0] * cst), 
+                                              convert(Vector{AffineCoeff}, cst * a.deviations))
+*(cst::AffineInt, a::Affine)::Affine = Affine(a, AffineCoeff(cst * a[0]), 
+                                              convert(Vector{AffineCoeff}, cst * a.deviations))
+
+function /(a::Affine, cst::Union{AffineCoeff, AffineInt})::Affine
+    if(cst == zero(cst))
+        throw(DomainError(a, "trying to divide by zero"))
+    end
+    Affine(a, a.cvalue * (1.0 / cst), (1.0 / cst) * a.deviations)
 end
 
  #=
- # a + p, where a, p are AAF
+ # a + p, where a, p are Affine
 =#
-function +(a::AAF, p::AAF)::AAF
+function +(a::Affine, p::Affine)::Affine
     if(length(p) == 0)
         return a + p[0]
     elseif(length(a) == 0)
@@ -340,13 +343,13 @@ function +(a::AAF, p::AAF)::AAF
         devt[ii] = (ia == nothing ? p[ip] : 
          (ip == nothing ? a[ia] : a[ia] + p[ip]))
     end
-    return AAF(a[0] + p[0], devt, indt)
+    return Affine(a[0] + p[0], devt, indt)
 end
 
  #=
- # a - p where a, p are AAF
+ # a - p where a, p are Affine
 =#
-function -(a::AAF, p::AAF)::AAF
+function -(a::Affine, p::Affine)::Affine
     if(length(p) == 0)
         return a - p[0]
     elseif(length(a) == 0)
@@ -361,15 +364,15 @@ function -(a::AAF, p::AAF)::AAF
         devt[ii] = (ia == nothing ? -p[ip] : 
          (ip == nothing ? a[ia] : a[ia] - p[ip]))
     end
-    return AAF(a[0] - p[0], devt, indt)
+    return Affine(a[0] - p[0], devt, indt)
 end
 
-function -(a::AAF)::AAF
-    return AAF(a, -a[0], -1 * a.deviations)
+function -(a::Affine)::Affine
+    return Affine(a, -a[0], -1 * a.deviations)
 end
 
  #=
- # Approximates a * p where a, p are AAF
+ # Approximates a * p where a, p are Affine
  # There are three affine products based on the appoximation of the coefficient for μₖ
  #   xy = x₀ŷ₀ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + ½∑[over 1⩽i,j⩽n] |xᵢyⱼ+yᵢxⱼ|μₖ
  #   xy = x₀ŷ₀ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + (∑ᴺᵢ|xᵢ|)(∑ᴺᵢ|yᵢ|)μₖ
@@ -381,7 +384,7 @@ end
  # Specification:
  #   xy = x₀ŷ₀ + ½∑ᴺᵢxᵢyᵢ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + [(∑ᴺᵢ|xᵢ|)(∑ᴺᵢ|yᵢ|) - ½∑ᴺᵢ|xᵢyᵢ|]μₖ
 =#
-function *(a::AAF, p::AAF)::AAF
+function *(a::Affine, p::Affine)::Affine
     if(length(p) == 0)
         return a * p[0]
     elseif(length(a) == 0)
@@ -392,7 +395,7 @@ function *(a::AAF, p::AAF)::AAF
     adjCenter2    = 0.0
     indt  = [ii for ii in union(a.indexes, p.indexes)]
     sort!(indt)
-    indt  = addAAFIndex(indt)
+    indt  = addAffineIndex(indt)
     lindt = length(indt)
     devt  = fill(0.0, lindt)
     pcomp = tuple.(indexin(indt, a.indexes), indexin(indt, p.indexes))
@@ -410,16 +413,16 @@ function *(a::AAF, p::AAF)::AAF
         end
     end
     devt[lindt] = rad(a)*rad(p) - 0.5*adjDeviation2
-    return AAF(a[0]*p[0] + 0.5*adjCenter2, devt, indt)
+    return Affine(a[0]*p[0] + 0.5*adjCenter2, devt, indt)
 end
 
  #=
- # Obtain 1/a where a is AAF
+ # Obtain 1/a where a is Affine
  # TODO: explain how this works?
 =#
-function inv(p::AAF)::AAF
+function inv(p::Affine)::Affine
     if(length(p) == 0)
-        return AAF(1.0 / p[0])
+        return Affine(1.0 / p[0])
     end
 
     r = rad(p)
@@ -450,26 +453,26 @@ function inv(p::AAF)::AAF
         error("incomplete")
     end
 
-    indt = addAAFIndex(p.indexes)
+    indt = addAffineIndex(p.indexes)
     devt = alpha * p.deviations
     devt = vcat(devt, delta)
-    return AAF(alpha*p[0] + dzeta, devt, indt)
+    return Affine(alpha*p[0] + dzeta, devt, indt)
 end
 
-/(cst::AAFCoeff, a::AAF) = cst * inv(a)
-/(a::AAF, p::AAF)::AAF   = a * inv(p)
+/(cst::AffineCoeff, a::Affine) = cst * inv(a)
+/(a::Affine, p::Affine)::Affine   = a * inv(p)
 
  #=
- # Obtain a^n where a is AAF and n is an integer
+ # Obtain a^n where a is Affine and n is an integer
  # TODO: explain how this works?
 =#
-function ^(p::AAF, n::Int)
+function ^(p::Affine, n::Int)
     if(length(p) == 0)
-        return AAF(p[0]^n)
+        return Affine(p[0]^n)
     end
 
     if(n == 0)
-        return one(AAF)
+        return one(Affine)
     elseif(n == 1)
         return p
     elseif(n == -1)
@@ -492,7 +495,7 @@ function ^(p::AAF, n::Int)
             alpha = n * pa / (a + EPSILON)
         end
 
-        xₐ = - abs(alpha / n)^(1 / (n - 1))
+        xₐ = -abs(alpha / n)^(1.0 / (n - 1.0))
         xᵦ = -xₐ
 
         if(xₐ > a)
@@ -505,7 +508,7 @@ function ^(p::AAF, n::Int)
         if(xᵦ < b)
             pxᵦ = xᵦ^n
         else
-            xᵦ = b
+            xᵦ  = b
             pxᵦ = pb
         end
 
@@ -520,20 +523,20 @@ function ^(p::AAF, n::Int)
         error("incomplete")
     end
 
-    indt = addAAFIndex(p.indexes)
+    indt = addAffineIndex(p.indexes)
     devt = alpha * p.deviations
     devt = vcat(devt, delta)
-    return AAF(alpha*p[0] + dzeta, devt, indt)
+    return Affine(alpha*p[0] + dzeta, devt, indt)
 end
 
 # TODO
-function sin(p::AAF)::AAF
+function sin(p::Affine)::Affine
     if(length(p) == 0)
-        return AAF(sin(p[0]))
+        return Affine(sin(p[0]))
     end
 
 end
 
-#function ^(a::AAF) const;
+#function ^(a::Affine) const;
 
 end # module AffineArithmetic

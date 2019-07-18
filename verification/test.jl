@@ -1,13 +1,18 @@
 include("./helper.jl")
 
-localModulePath = "/home/fireofearth/res/mitchell-ian/2019s-verification/verification/module"
-if(!(localModulePath in LOAD_PATH))
-    push!(LOAD_PATH, localModulePath)
-end
+disp(msg) = print("$(msg)\n")
+debug() = print("DEBUG\n")
 
 using Test, Random, IntervalArithmetic
 using ModalIntervalArithmetic
 using AffineArithmetic
+using ForwardDiff
+
+ #=
+ # Modal Interval testing
+ #
+ # TODO:
+=#
 
 @testset "modal interval getters" begin
     X = ModalInterval(1,2) # proper
@@ -61,12 +66,12 @@ end
  # TODO: 
 =#
 
-@testset "affine arithmetic" begin
+@testset "affine arithmetic common" begin
     @testset "basic" begin
         center = 3.14
         dev    = [0.75, 0.01]
         ind    = [1, 3]
-        a = AAF(center, dev, ind)
+        a = Affine(center, dev, ind)
         aOne = one(a)
         aZero = zero(a)
         @test a*aOne == a == aOne*a
@@ -77,7 +82,7 @@ end
         center1 = 100.001
         dev1    = [2.0, 1.0, -5.0, 4.0]
         ind1    = [1  , 3  ,  4,   6]
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         @test a1[0] == center1
         for ii in 1:4
             @test a1[ii] == dev1[ii]
@@ -92,24 +97,24 @@ end
         center1 = 1.321
         dev1    = [2.1, 0.0, 1.5, -5.3, 4.2]
         ind1    = [1  , 2,   5  ,  7,   8]
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         center2 = 1.321
         dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
         ind2    = [1  , 2,   5  ,  7,   8]
-        a2 = AAF(center2, dev2, ind2)
+        a2 = Affine(center2, dev2, ind2)
 
         @test a1 == a2
         ind1[2] = 3
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         @test a1 != a2
         ind1[2] = 2
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         @test a1 == a2
         dev1[3] = 0.5
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         @test a1 != a2
         dev1[3] = 1.5
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         @test a1 == a2
     end
 
@@ -117,61 +122,107 @@ end
         center1 = 1.321
         dev1    = [2.1, 0.0, 1.5, -5.3, 4.0]
         ind1    = [1  , 2,   5  ,  7,   8]
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         center2 = 1.321
         dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
         ind2    = [1  , 2,   5  ,  7,   8]
-        a2 = AAF(center2, dev2, ind2)
+        a2 = Affine(center2, dev2, ind2)
 
         @test a1 != a2
         dev1    = [2.1, 0.0, 1.5, -5.3, 4.2]
         ind1    = [1  , 2,   5  ,  7,   9]
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
         ind2    = [1  , 2,   5  ,  7,   8]
-        a2 = AAF(center2, dev2, ind2)
+        a2 = Affine(center2, dev2, ind2)
         @test a1 != a2
         dev1    = [1.1, 0.0, 1.5, -5.3, 4.2]
         ind1    = [1  , 2,   5  ,  7,   8]
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
         ind2    = [1  , 2,   5  ,  7,   8]
-        a2 = AAF(center2, dev2, ind2)
+        a2 = Affine(center2, dev2, ind2)
         @test a1 != a2
         dev1    = [2.1, 0.0, 1.5, -5.3, 4.2]
         ind1    = [2  , 3,   5  ,  7,   8]
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
         ind2    = [1  , 3,   5  ,  7,   8]
-        a2 = AAF(center2, dev2, ind2)
+        a2 = Affine(center2, dev2, ind2)
         @test a1 != a2
         center1 = 0.321
         dev1    = [2.1, 0.0, 1.5, -5.3, 4.2]
         ind1    = [1  , 2,   5  ,  7,   8]
-        a1 = AAF(center1, dev1, ind1)
+        a1 = Affine(center1, dev1, ind1)
         center2 = 1.321
         dev2    = [2.1, 0.0, 1.5, -5.3, 4.2]
         ind2    = [1  , 2,   5  ,  7,   8]
-        a2 = AAF(center2, dev2, ind2)
+        a2 = Affine(center2, dev2, ind2)
         @test a1 != a2
     end
+end
+
+ #=
+ # Verify Affine-Constant operations where constant can be floats or ints.
+=#
+@testset "affine arithmetic constant ops" begin
+    center = 12.0
+    dev    = [3.0, 6.0, 9.0]
+    ind    = [1,    3,    4]
+    a = Affine(center, dev, ind)
+
+    @testset "addition / subtraction" begin
+        @test a + 2.0 == Affine(14.0, dev, ind)
+        @test a + 2   == Affine(14.0, dev, ind)
+        @test 2.0 + a == Affine(14.0, dev, ind)
+        @test 2   + a == Affine(14.0, dev, ind)
+        @test a - 2.0 == Affine(10.0, dev, ind)
+        @test a - 2   == Affine(10.0, dev, ind)
+        @test 2.0 - a == Affine(-10.0, dev, ind)
+        @test 2   - a == Affine(-10.0, dev, ind)
+    end
+
+    @testset "multiplication" begin
+        @test a * 2.0 == Affine(24.0, [6.0, 12.0, 18.0], ind)
+        @test a * 2   == Affine(24.0, [6.0, 12.0, 18.0], ind)
+        @test 2.0 * a == Affine(24.0, [6.0, 12.0, 18.0], ind)
+        @test 2   * a == Affine(24.0, [6.0, 12.0, 18.0], ind)
+    end
+
+    @testset "division" begin
+        @test a / 3.0 == Affine(4.0, [1.0, 2.0, 3.0], ind)
+        @test a / 3   == Affine(4.0, [1.0, 2.0, 3.0], ind)
+    end
+end
+
+@testset "affine arithmetic hardcode ops" begin
+    center  = 26.10
+    dev     = [2.11, -3.03, 4.59, 1.0, -10.0]
+    ind     = [1,     3,    5,    8,    10]
 
     # RINO uses CHEBYSHEV
-    @testset "inverse (hardcode)" begin
-        resetLastAAFIndex()
-        center  = 26.10
-        dev     = [2.11, -3.03, 4.59, 1.0, -10.]
-        ind     = [1,     3,    5,    8,    10]
+    @testset "inverse" begin
+        resetLastAffineIndex()
         nCenter = 0.06305953707868751
         nDev    = [-0.00839043, 0.0120488, -0.0182522, -0.00397651, 0.0397651, 0.0407272]
         nInd    = [ 1,          3,          5,          8,         10,        11]
-        a = AAF(center)
-        @test inv(a) == AAF(1 / center)
-        a = AAF(center, dev, ind)
-        @test isapprox(inv(a), AAF(nCenter, nDev, nInd); tol=10E-8)
+        a = Affine(center)
+        @test inv(a) == Affine(1 / center)
+        a = Affine(center, dev, ind)
+        @test isapprox(inv(a), Affine(nCenter, nDev, nInd); tol=10E-8)
+        resetLastAffineIndex()
+        a = Affine(center, dev, ind)
+        @test isapprox(a^(-1), Affine(nCenter, nDev, nInd); tol=10E-8)
     end
 
-    @testset "power (hardcode)" begin
+    @testset "power" begin
+        resetLastAffineIndex()
+        nCenter = 896.07645
+        nDev    = [110.142, -158.166, 239.598, 52.2, -522.0, 214.86645]
+        nInd    = [  1,        3,       5,      8,     10,    11]
+        a = Affine(center, dev, ind)
+        @test a^1 == a
+        @test isapprox(a^2, Affine(nCenter, nDev, nInd); tol=10E-8)
     end
 end
 
@@ -220,13 +271,13 @@ end
     n1 = rand(6:10)
     dev1 = rand(Float64,n1) .+ rand(-9:9, n1)
     ind1 = sort(shuffle(Array(1:20))[1:n1])
-    a1 = AAF(center1,dev1,ind1)
+    a1 = Affine(center1,dev1,ind1)
 
     center2 = rand(Float64) + rand(0:99)
     n2 = rand(6:10)
     dev2 = rand(Float64,n2) .+ rand(-9:9, n2)
     ind2 = sort(shuffle(Array(1:20))[1:n2])
-    a2 = AAF(center2,dev2,ind2)
+    a2 = Affine(center2,dev2,ind2)
 
     rn1 = rand(Float64) + rand(0:99)
 
@@ -337,12 +388,42 @@ end
         end
         kk = length(multSol) + 1
         #@test aMult[kk] ≈ (sum(abs.(dev1)) * sum(abs.(dev2))) - 0.5*sum(abs.(dev1 .* dev2))
-        @test aMult.indexes[kk]   == getLastAAFIndex()
+        @test aMult.indexes[kk] == getLastAffineIndex()
     end
 end
 
+@testset "affine arithmetic ForwardDiff" begin
+    a1 = Affine(32.1, [0.1, -0.2, 1.5, -2.0], [1, 3, 4, 5])
+    a2 = Affine(27.3, [10.0, 0.5, 1.0], [1, 4, 6])
+    a3 = Affine(4.0,  [-3.33, 9.0, -1.5, 5.25], [2, 3, 5, 6])
+    ax = [a1, a2, a3]
+    
+    @testset "derivative" begin
+        f(x::Real)  = 1.0 - x^2 + x
+        df(x::Real) = -2*x + 1.0
+        @test ForwardDiff.derivative(f,a1) == df(a1)
+    end
+
+    # almost works
+    @testset "gradient" begin
+        f(x::Vector)  = x[1]*x[3] + 2.0*x[2]*x[1] - x[3]*x[2]
+        gf(x::Vector) = [x[3] + 2.0*x[2], 2.0*x[1] - x[3], x[1] - x[2]]
+        @test ForwardDiff.gradient(f,ax) == gf(ax)
+    end
+end
+
+#=
+Affine(58.6, [20.0, -3.33, 9.0, 1.0, -1.5, 7.25], [1, 2, 3, 4, 5, 6]), 
+Affine(60.2, [0.2, 3.33, -9.4, 3.0, -2.5, -5.25], [1, 2, 3, 4, 5, 6]), 
+Affine(4.8, [-9.9, 0.0, -0.2, 1.0, -2.0, -1.0], [1, 2, 3, 4, 5, 6])]
+
+Affine(58.6, [20.0, -3.33, 9.0, 1.0, -1.5, 7.25], [1, 2, 3, 4, 5, 6]), 
+Affine(60.2, [0.2, 3.33, -9.4, 3.0, -2.5, -5.25], [1, 2, 3, 4, 5, 6]), 
+Affine(4.8, [-9.9, -0.2, 1.0, -2.0, -1.0], [1, 3, 4, 5, 6])]
 
 
+
+=#
 
 
 
