@@ -12,7 +12,6 @@ module AffineArithmetic
  # keep track of indeterminate coefficients
  #
  # TODO: finish documentation
- # TODO: expand arithmetic functions for all subtypes of Real
  # TODO: aaflib trig. functions sin, cos; requires me to know
  # what implementation changes Goubault/Putot made for sin, cos
  # TODO: aaflib pow is supported?
@@ -38,7 +37,8 @@ export
     <, <=, >, >=,
     Interval, inf, sup,
     rad, getMax, getMin, getAbsMax, getAbsMin, inv,
-    ==, +, -, *, /, ^
+    ==, +, -, *, /, ^,
+    compact
 
 # TODO: testing only
 export getLastAffineIndex, resetLastAffineIndex, ApproximationType
@@ -65,13 +65,14 @@ disp(msg) = print("$(msg)\n")
 debug() = print("DEBUG\n")
 
  #=
- # last keeps record of last coefficient index of affine forms accoss all Affine instances.
+ # lastAffineIndex keeps record of last coefficient index of affine forms accoss all Affine 
+ # instances. lastAffineIndex is used to assign indexes to new deviation symbols.
  #
  # Specification:
  # - force setLastAffineIndex to call whenever a new Affine instance is created.
  #
  # TODO: turn this into a decorator/macro and force calls
- # TODO: which functions is `last` for exactly?
+ # TODO: confirm functions that use `last` in aaflib are supported
 =#
 let lastAffineIndex::Int = 0
 
@@ -102,12 +103,16 @@ let lastAffineIndex::Int = 0
     end
 
      #=
+     # Given an array representing indexes of affine form, set lastAffineIndex to the last
+     # index only if the last index is larger than lastAffineIndex
      # TODO: test
     =#
     global function setLastAffineIndex(indexes::Vector{AffineInd})
-        m = last(indexes)
-        if(m > lastAffineIndex)
-            lastAffineIndex = m
+        if(!isempty(indexes))
+            m = last(indexes)
+            if(m > lastAffineIndex)
+                lastAffineIndex = m
+            end
         end
         return indexes
     end
@@ -336,7 +341,7 @@ function +(a::Affine, p::Affine)::Affine
     end
     indt = [ii for ii in union(a.indexes, p.indexes)]
     sort!(indt)
-    devt = fill(0.0, length(indt)) #  Vector(undef,length(indt))
+    devt = fill(0.0, length(indt))
     pcomp = tuple.(indexin(indt, a.indexes), indexin(indt, p.indexes))
     for (ii, (ia,ip)) in enumerate(pcomp)
         @assert ia != nothing || ip != nothing
@@ -357,7 +362,7 @@ function -(a::Affine, p::Affine)::Affine
     end
     indt = [ii for ii in union(a.indexes, p.indexes)]
     sort!(indt)
-    devt = fill(0.0, length(indt)) #  Vector(undef,length(indt))
+    devt = fill(0.0, length(indt))
     pcomp = tuple.(indexin(indt, a.indexes), indexin(indt, p.indexes))
     for (ii, (ia,ip)) in enumerate(pcomp)
         @assert ia != nothing || ip != nothing
@@ -418,7 +423,11 @@ end
 
  #=
  # Obtain 1/a where a is Affine
- # TODO: explain how this works?
+ #
+ # Specification:
+ # - Inverse does not exist if 0 ∈ [p[0] - rad(p), p[0] + rad(p)] (which is given by guard a*b < EPSILON)
+ # - 
+ # TODO: Complete documentation: explain how this works?
 =#
 function inv(p::Affine)::Affine
     if(length(p) == 0)
@@ -428,21 +437,20 @@ function inv(p::Affine)::Affine
     r = rad(p)
     a = p[0] - r;
     b = p[0] + r;
-    if(a*b < EPSILON)
+    if(a*b < EPSILON) # if 0 ∈ [p[0] - rad(p), p[0] + rad(p)]
         throw(DomainError(p, "trying to invert zero"))
     end
-
-    inva = 1. / a
-    invb = 1. / b
+    inva = 1.0 / a
+    invb = 1.0 / b
 
     if(approximationType == CHEBYSHEV)
         alpha = -inva * invb
         u = sqrt(a * b)
 
-        if(a > 0)
+        if(a > 0) # affine is above 0
             delta = 0.5*(inva + invb - 2.0/u)
             dzeta = inva + invb - delta
-        else
+        else # affine is below 0
             delta = -0.5*(inva + invb + 2.0/u)
             dzeta = inva + invb + delta
         end
@@ -459,7 +467,7 @@ function inv(p::Affine)::Affine
     return Affine(alpha*p[0] + dzeta, devt, indt)
 end
 
-/(cst::AffineCoeff, a::Affine) = cst * inv(a)
+/(cst::Union{AffineCoeff, AffineInt}, a::Affine)::Affine = cst * inv(a)
 /(a::Affine, p::Affine)::Affine   = a * inv(p)
 
  #=
@@ -529,6 +537,10 @@ function ^(p::Affine, n::Int)
     return Affine(alpha*p[0] + dzeta, devt, indt)
 end
 
+ #=
+ #
+ #
+=#
 # TODO
 function sin(p::Affine)::Affine
     if(length(p) == 0)
@@ -538,5 +550,18 @@ function sin(p::Affine)::Affine
 end
 
 #function ^(a::Affine) const;
+
+ #=
+ # Removes all noise terms xᵢϵᵢ coefficients with |xᵢ| < tol
+=#
+function compact(p::Affine; tol::Float64=TOL)
+    pfilt = filter(x -> abs(x[1]) > TOL, tuple.(p.deviations, p.indexes))
+    devt = [x[1] for x in pfilt]
+    indt = [x[2] for x in pfilt]
+    return Affine(p[0], devt, indt)
+end
+
+compact(x::Vector{Affine}; tol::Float64=TOL) = (p -> compact(p, tol=tol)).(x)
+compact(x::Matrix{Affine}; tol::Float64=TOL) = (p -> compact(p, tol=tol)).(x)
 
 end # module AffineArithmetic

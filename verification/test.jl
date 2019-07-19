@@ -59,15 +59,28 @@ end
  #=
  # Affine arithmetic testing
  # 
+ # Specifications:
+ # - algebriac identities one, zero, isone, iszero
+ # - unitary operations and constructors
+ # - detailed constructors
+ #
+ # - when comparing two affine forms we require the indexes to match thus we call 
+ # resetLastAffineIndex() before generating them. This is especially true when testing for
+ # ForwardDiff
+ #
  # TODO: constructors, getters, utility functionality
  # TODO: hardcoded tests to check boundary cases
  # TODO: tests to compare solutions with aaflib
  # TODO: improve random number generators
- # TODO: 
+ # TODO: tests to check compatibility with ForwardDiff
 =#
 
+ #=
+ # Affine Arithmetic Common
+ # All functionality except for elementary functions and binary operations
+=#
 @testset "affine arithmetic common" begin
-    @testset "basic" begin
+    @testset "algebriac identities" begin
         center = 3.14
         dev    = [0.75, 0.01]
         ind    = [1, 3]
@@ -78,7 +91,7 @@ end
         @test a + aZero == a == aZero + a
     end
 
-    @testset "unitary" begin
+    @testset "constructors; unitary" begin
         center1 = 100.001
         dev1    = [2.0, 1.0, -5.0, 4.0]
         ind1    = [1  , 3  ,  4,   6]
@@ -160,6 +173,18 @@ end
         a2 = Affine(center2, dev2, ind2)
         @test a1 != a2
     end
+
+    @testset "compact" begin
+        center = 12.0
+        dev = [0.0, 2.0, 3.0, 0.0, 1.0, 0.0]
+        ind = [1,   2,   3,   5,   8,   9]
+        a = Affine(center, dev, ind)
+        @test compact(a) == Affine(center, [2.0, 3.0, 1.0], [2, 3, 8])
+        a = Affine(center, [0.0], [1])
+        @test compact(a) == Affine(center)
+        a = Affine(center)
+        @test compact(a) == Affine(center)
+    end
 end
 
  #=
@@ -213,6 +238,19 @@ end
         resetLastAffineIndex()
         a = Affine(center, dev, ind)
         @test isapprox(a^(-1), Affine(nCenter, nDev, nInd); tol=10E-8)
+    end
+
+    @testset "inverse equivalencies" begin
+        resetLastAffineIndex()
+        a     = Affine(center, dev, ind)
+        inva1 = inv(a)
+        resetLastAffineIndex()
+        a     = Affine(center, dev, ind)
+        inva2 = 1/a
+        resetLastAffineIndex()
+        a     = Affine(center, dev, ind)
+        inva3 = a^(-1)
+        @test inva1 == inva2 == inva3
     end
 
     @testset "power" begin
@@ -392,11 +430,23 @@ end
     end
 end
 
+ #=
+ # Affine Arithmetic ForwardDiff
+ # Tests compatibility with ForwardDiff
+ # 
+ # Remark: ForwardDiff almost works as is; must make affines compact by removing zeros
+=#
 @testset "affine arithmetic ForwardDiff" begin
+    centers = [32.1, 27.3, 58.0]
+    devs    = [[0.1, -0.2, 1.5, -2.0],
+               [10.0, 0.5, 1.0], 
+               [-3.33, 9.0, -1.5, 5.25]]
+    inds    = [[1, 3, 4, 5],
+              [1, 4, 6],
+              [2, 3, 5, 6]]
     a1 = Affine(32.1, [0.1, -0.2, 1.5, -2.0], [1, 3, 4, 5])
     a2 = Affine(27.3, [10.0, 0.5, 1.0], [1, 4, 6])
     a3 = Affine(4.0,  [-3.33, 9.0, -1.5, 5.25], [2, 3, 5, 6])
-    ax = [a1, a2, a3]
     
     @testset "derivative" begin
         f(x::Real)  = 1.0 - x^2 + x
@@ -404,26 +454,147 @@ end
         @test ForwardDiff.derivative(f,a1) == df(a1)
     end
 
-    # almost works
+    @testset "derivative of 1/x" begin
+        f(x::Real)  = 1/x
+        df(x::Real) = -(1 /x /x)
+        resetLastAffineIndex()
+        a1     = Affine(centers[1], devs[1], inds[1])
+        actual = df(a1)
+        resetLastAffineIndex()
+        a1     = Affine(centers[1], devs[1], inds[1])
+        res    = ForwardDiff.derivative(f, a1)
+        @test res == actual
+        resetLastAffineIndex()
+        a2     = Affine(centers[2], devs[2], inds[2])
+        actual = df(a2)
+        resetLastAffineIndex()
+        a2     = Affine(centers[2], devs[2], inds[2])
+        res    = ForwardDiff.derivative(f, a2)
+        @test res == actual
+        resetLastAffineIndex()
+        a3     = Affine(centers[3], devs[3], inds[3])
+        actual = df(a3)
+        resetLastAffineIndex()
+        a3     = Affine(centers[3], devs[3], inds[3])
+        res    = ForwardDiff.derivative(f, a3)
+        @test res == actual
+    end
+
     @testset "gradient" begin
         f(x::Vector)  = x[1]*x[3] + 2.0*x[2]*x[1] - x[3]*x[2]
         gf(x::Vector) = [x[3] + 2.0*x[2], 2.0*x[1] - x[3], x[1] - x[2]]
-        @test ForwardDiff.gradient(f,ax) == gf(ax)
+        ax = [a1, a2, a3]
+        res = ForwardDiff.gradient(f, ax)
+        @test compact(res) == gf(ax)
+    end
+
+    @testset "gradient 2" begin
+        f(x::Vector) = x[1]/x[2]
+        gf(x::Vector) = [inv(x[2]), -(x[1] /x[2] /x[2])]
+        resetLastAffineIndex()
+        a1     = Affine(centers[1], devs[1], inds[1])
+        a2     = Affine(centers[2], devs[2], inds[2])
+        ax     = [a1, a2]
+        actual = gf(ax)
+        disp(actual)
+        resetLastAffineIndex()
+        a1     = Affine(centers[1], devs[1], inds[1])
+        a2     = Affine(centers[2], devs[2], inds[2])
+        ax     = [a1, a2]
+        res    = ForwardDiff.gradient(f, ax)
+        @test res == actual
+    end
+
+    @testset "hessian" begin
+        f(x::Vector) = x[1]*x[2]^2 - x[2]*x[1]^2
+        Hf(x::Vector) = [-2*x[2] (2*x[2] - 2*x[1]); (2*x[2] - 2*x[1]) 2*x[1]]
+        ax = [a1, a2]
+        res = ForwardDiff.hessian(f, ax)
+        @test compact(res) == Hf(ax)
+    end
+
+
+    @testset "jacobian" begin
+        f(x::Vector) = [(x[1]*x[2]) /x[3], (x[1]*x[2])*x[3], x[1]^2 + x[2]^2 + x[3]^2]
+        Jf(x::Vector) = [x[2]/x[3]  x[1]/x[3]  -((x[1]*x[2]) /x[3] /x[3]); 
+                         x[2]*x[3]  x[1]*x[3]  x[1]*x[2]; 
+                         2*x[1]     2*x[2]     2*x[3]]
+        resetLastAffineIndex()
+        a1     = Affine(centers[1], devs[1], inds[1])
+        a2     = Affine(centers[2], devs[2], inds[2])
+        a3     = Affine(centers[3], devs[3], inds[3])
+        ax = [a1, a2, a3]
+        actual = Jf(ax)
+        resetLastAffineIndex()
+        a1     = Affine(centers[1], devs[1], inds[1])
+        a2     = Affine(centers[2], devs[2], inds[2])
+        a3     = Affine(centers[3], devs[3], inds[3])
+        ax     = [a1, a2, a3]
+        res    = ForwardDiff.jacobian(f, ax)
+        #@test res == actual
+        @test compact(res) == actual
     end
 end
 
 #=
-Affine(58.6, [20.0, -3.33, 9.0, 1.0, -1.5, 7.25], [1, 2, 3, 4, 5, 6]), 
-Affine(60.2, [0.2, 3.33, -9.4, 3.0, -2.5, -5.25], [1, 2, 3, 4, 5, 6]), 
-Affine(4.8, [-9.9, 0.0, -0.2, 1.0, -2.0, -1.0], [1, 2, 3, 4, 5, 6])]
+# Jacobian: First round
+Affine(0.497556, [0.182576, 0.0303035, -0.0819013, 0.00912878, 0.0136502, -0.0295182, 0.0293768, 0.084641], [1, 2, 3, 4, 5, 6, 10, 14]) 
+Affine(0.586068, [0.00182576, 0.0356316, -0.099953, 0.0273863, -0.0204649, -0.0561759, 0.0345419, 0.0282574], [1, 2, 3, 4, 5, 6, 10, 15]) 
+Affine(-0.396579, [-0.147186, -0.0700039, 0.191682, -0.0259154, -0.00670904, 0.095772, -0.019698, 0.063477, -0.213541, -0.397266], [1, 2, 3, 4, 5, 6, 7, 11, 12, 13]); 
 
-Affine(58.6, [20.0, -3.33, 9.0, 1.0, -1.5, 7.25], [1, 2, 3, 4, 5, 6]), 
-Affine(60.2, [0.2, 3.33, -9.4, 3.0, -2.5, -5.25], [1, 2, 3, 4, 5, 6]), 
-Affine(4.8, [-9.9, -0.2, 1.0, -2.0, -1.0], [1, 3, 4, 5, 6])]
+Affine(1586.03, [580.0, -90.909, 245.7, 29.0, -40.95, 201.325, 216.795], [1, 2, 3, 4, 5, 6, 19]) 
+Affine(1861.8, [5.8, -106.893, 277.3, 87.0, -164.15, 168.525, 72.504], [1, 2, 3, 4, 5, 6, 20]) 
+Affine(876.705, [323.73, -5.46, 57.0, -54.6, 32.1, 43.325], [1, 3, 4, 5, 6, 17]); 
 
+Affine(64.2, [0.2, -0.4, 3.0, -4.0], [1, 3, 4, 5]) 
+Affine(54.6, [20.0, 1.0, 2.0], [1, 4, 6]) 
+Affine(116.0, [-6.66, 18.0, -3.0, 10.5], [2, 3, 5, 6])
 
+==============
 
+Affine(0.497556, [0.182576, 0.0303035, -0.0819013, 0.00912878, 0.0136502, -0.0295182, 0.0293768, 0.084641], [1, 2, 3, 4, 5, 6, 7, 8]) 
+# center
+Affine(0.585568, [0.00182576, 0.0356316, -0.099953, 0.0273863, -0.0204649, -0.0561759, 0.0345419, 0.0277574], [1, 2, 3, 4, 5, 6, 9, 10]) 
+# everything
+Affine(-0.292556, [-0.107912, -0.0355038, 0.0977762, -0.0190003, 0.00220758, 0.0452743, -0.0144419, -0.0172241, -0.0695718, -0.0171939, -0.130834], [1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15]); 
+
+Affine(1586.03, [580.0, -90.909, 245.7, 29.0, -40.95, 201.325, 216.795], [1, 2, 3, 4, 5, 6, 16]) 
+# center
+Affine(1863.3, [5.8, -106.893, 277.3, 87.0, -164.15, 168.525, 71.004], [1, 2, 3, 4, 5, 6, 17]) 
+Affine(876.705, [323.73, -5.46, 57.0, -54.6, 32.1, 43.325], [1, 3, 4, 5, 6, 18]); 
+
+Affine(64.2, [0.2, -0.4, 3.0, -4.0], [1, 3, 4, 5]) 
+Affine(54.6, [20.0, 1.0, 2.0], [1, 4, 6]) 
+Affine(116.0, [-6.66, 18.0, -3.0, 10.5], [2, 3, 5, 6])]
 =#
 
+#=
+# Jacobian: Second round
+Affine(0.497556, [0.182576, 0.0303035, -0.0819013, 0.00912878, 0.0136502, -0.0295182, 0.0293768, 0.084641], [1, 2, 3, 4, 5, 6, 10, 14]) 
+Affine(0.586068, [0.00182576, 0.0356316, -0.099953, 0.0273863, -0.0204649, -0.0561759, 0.0345419, 0.0282574], [1, 2, 3, 4, 5, 6, 10, 15]) 
+Affine(-0.396579, [-0.147186, -0.0700039, 0.191682, -0.0259154, -0.00670904, 0.095772, -0.019698, 0.063477, -0.213541, -0.397266], [1, 2, 3, 4, 5, 6, 7, 11, 12, 13]); 
+
+Affine(1586.03, [580.0, -90.909, 245.7, 29.0, -40.95, 201.325, 216.795], [1, 2, 3, 4, 5, 6, 19]) 
+Affine(1861.8, [5.8, -106.893, 277.3, 87.0, -164.15, 168.525, 72.504], [1, 2, 3, 4, 5, 6, 20]) 
+Affine(876.705, [323.73, -5.46, 57.0, -54.6, 32.1, 43.325], [1, 3, 4, 5, 6, 17]); 
+
+Affine(64.2, [0.2, -0.4, 3.0, -4.0], [1, 3, 4, 5]) 
+Affine(54.6, [20.0, 1.0, 2.0], [1, 4, 6]) 
+Affine(116.0, [-6.66, 18.0, -3.0, 10.5], [2, 3, 5, 6])
+
+==============================
+
+Affine(0.497556, [0.182576, 0.0303035, -0.0819013, 0.00912878, 0.0136502, -0.0295182, 0.0293768, 0.084641], [1, 2, 3, 4, 5, 6, 7, 8]) 
+Affine(0.585568, [0.00182576, 0.0356316, -0.099953, 0.0273863, -0.0204649, -0.0561759, 0.0345419, 0.0277574], [1, 2, 3, 4, 5, 6, 9, 10]) 
+Affine(-0.292556, [-0.107912, -0.0355038, 0.0977762, -0.0190003, 0.00220758, 0.0452743, -0.0144419, -0.0172241, -0.0695718, -0.0171939, -0.130834], [1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15]); 
+
+Affine(1586.03, [580.0, -90.909, 245.7, 29.0, -40.95, 201.325, 216.795], [1, 2, 3, 4, 5, 6, 16]) 
+Affine(1863.3, [5.8, -106.893, 277.3, 87.0, -164.15, 168.525, 71.004], [1, 2, 3, 4, 5, 6, 17]) 
+Affine(876.705, [323.73, -5.46, 57.0, -54.6, 32.1, 43.325], [1, 3, 4, 5, 6, 18]); 
+
+Affine(64.2, [0.2, -0.4, 3.0, -4.0], [1, 3, 4, 5]) 
+Affine(54.6, [20.0, 1.0, 2.0], [1, 4, 6])
+Affine(116.0, [-6.66, 18.0, -3.0, 10.5], [2, 3, 5, 6])
+=#
 
 
