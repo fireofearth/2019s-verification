@@ -46,7 +46,6 @@ f(x::Real) = 1/x
 # try jacobian
 f(x::Vector) = [x[1]*x[2]/x[3], x[1]*x[2]*x[3], x[1]^2 + x[2]^2 + x[3]^2]
 Jf(x::Vector) = [x[2]/x[3]  x[1]/x[3]  -(x[1]*x[2] /x[3] /x[3]); x[2]*x[3]  x[1]*x[3]  x[1]*x[2]; 2*x[1]  2*x[2]  2*x[3]]
-#Jf(x::Vector) = [x[2]/x[3]  x[1]/x[3]  -(x[1]*x[2] /x[3]^2); x[2]*x[3]  x[1]*x[3]  x[1]*x[2]; 2*x[1]  2*x[2]  2*x[3]]
 
 ax = [a1, a2, a3]
 
@@ -55,6 +54,23 @@ ax = [a1, a2, a3]
 #disp(f(ax))
 #disp(Jf(ax))
 #disp(compact(ForwardDiff.jacobian(f, ax)))
+
+f(x::Vector) = x[1] /x[2]
+gf(x::Vector) = [1 /x[2], -(x[1] /x[2] /x[2])]
+
+disp(gf([1., 3.]))
+disp(ForwardDiff.gradient(f, [1., 3.]))
+
+
+
+
+
+
+
+
+
+
+
 
 
 

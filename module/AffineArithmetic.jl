@@ -166,6 +166,11 @@ struct Affine <: Real
     Affine(iv::Interval) = new(mid(iv), [radius(iv)], addAffineIndex())
 
      #=
+     # Identity constructor
+    =#
+    Affine(a::Affine) = new(a.cvalue, a.deviations, a.indexes)
+
+     #=
      # Constructor that assigns new center to Affine
     =#
     Affine(a::Affine, cst::AffineCoeff) = new(cst, a.deviations, a.indexes)
@@ -372,9 +377,9 @@ function -(a::Affine, p::Affine)::Affine
     return Affine(a[0] - p[0], devt, indt)
 end
 
-function -(a::Affine)::Affine
-    return Affine(a, -a[0], -1 * a.deviations)
-end
+
++(a::Affine)::Affine = Affine(a)
+-(a::Affine)::Affine = Affine(a, -a[0], -1 * a.deviations)
 
  #=
  # Approximates a * p where a, p are Affine
