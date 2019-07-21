@@ -26,18 +26,17 @@ import IntervalArithmetic: Interval
 import IntervalArithmetic: inf, sup
 
 import Base:
-    zero, one, iszero, isone, convert, isapprox,
+    zero, one, iszero, isone, convert, isapprox, promote_rule,
     getindex, length, repr, size, firstindex, lastindex,
     <, <=, >, >=, ==, +, -, *, /, inv, ^
 
 export
-    AffineCoeff, AffineInd, AffineInt, Affine,
-    zero, one, convert, isapprox,
-    getindex, length, repr, firstindex, lastindex,
-    <, <=, >, >=,
+    zero, one, iszero, isone, convert, isapprox, promote_rule,
+    getindex, length, repr, size, firstindex, lastindex,
+    <, <=, >, >=, ==, +, -, *, /, inv, ^,
+    AffineCoeff, AffineInd, AffineInt, Affine, affineTOL,
     Interval, inf, sup,
-    rad, getMax, getMin, getAbsMax, getAbsMin, inv,
-    ==, +, -, *, /, ^,
+    rad, getMax, getMin, getAbsMax, getAbsMin,
     compact
 
 # TODO: testing only
@@ -52,6 +51,7 @@ export getLastAffineIndex, resetLastAffineIndex, ApproximationType
 MINRAD = 1E-10
 TOL = 1E-15
 EPSILON = 1E-20
+affineTOL = TOL
 
  #=
  # Type declarations
@@ -215,11 +215,21 @@ function repr(a::Affine)
     return s
 end
 
-convert(::Type{Affine}, x::Number) = Affine(x)
-one(::Type{Affine}) = convert(Affine, 1.)
-one(x::Affine) = convert(Affine, 1.)
+convert(::Type{Affine}, x::AffineCoeff) = Affine(x)
+convert(::Type{Affine}, x::AffineInt)   = Affine(x)
+
+one(::Type{Affine})  = convert(Affine, 1.)
+one(x::Affine)       = convert(Affine, 1.)
 zero(::Type{Affine}) = convert(Affine, 0.)
-zero(x::Affine) = convert(Affine, 0.)
+zero(x::Affine)      = convert(Affine, 0.)
+
+isone(x::Affine)     = x == one(Affine)
+iszero(x::Affine)    = x == zero(Affine)
+
+promote_rule(::Type{Affine},      ::Type{AffineCoeff}) = Affine
+promote_rule(::Type{Affine},      ::Type{AffineInt})   = Affine
+promote_rule(::Type{AffineCoeff}, ::Type{Affine})      = Affine
+promote_rule(::Type{AffineInt},   ::Type{Affine})      = Affine
 
  #=
  # Get the total deviation of an Affine (i.e. the sum of all deviations (their abs value))
@@ -378,8 +388,8 @@ function -(a::Affine, p::Affine)::Affine
 end
 
 
-+(a::Affine)::Affine = Affine(a)
--(a::Affine)::Affine = Affine(a, -a[0], -1 * a.deviations)
++(a::Affine) = Affine(a)
+-(a::Affine) = Affine(a, -a[0], -1 * a.deviations)
 
  #=
  # Approximates a * p where a, p are Affine

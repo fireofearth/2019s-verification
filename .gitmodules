@@ -1,0 +1,9 @@
+[submodule "/home/fireofearth/res/mitchell-ian/2019s-verification/module/diff/DiffRules.jl"]
+	path = /home/fireofearth/res/mitchell-ian/2019s-verification/module/diff/DiffRules.jl
+	url = https://github.com/fireofearth/DiffRules.jl.git
+[submodule "/home/fireofearth/res/mitchell-ian/2019s-verification/module/diff/DiffResults.jl"]
+	path = /home/fireofearth/res/mitchell-ian/2019s-verification/module/diff/DiffResults.jl
+	url = https://github.com/fireofearth/DiffResults.jl.git
+[submodule "/home/fireofearth/res/mitchell-ian/2019s-verification/module/diff/ForwardDiff.jl"]
+	path = /home/fireofearth/res/mitchell-ian/2019s-verification/module/diff/ForwardDiff.jl
+	url = https://github.com/fireofearth/ForwardDiff.jl.git
