@@ -30,6 +30,8 @@ import Base:
     getindex, length, repr, size, firstindex, lastindex,
     <, <=, >, >=, ==, +, -, *, /, inv, ^
 
+using Logging
+
 export
     zero, one, iszero, isone, convert, isapprox, promote_rule,
     getindex, length, repr, size, firstindex, lastindex,
@@ -205,6 +207,9 @@ function length(a::Affine)
     return length(a.deviations)
 end
 
+ #=
+ # Obtain the string representation of an affine form
+=#
 function repr(a::Affine)
     s = "$(a[0])"
     if(length(a) > 0)
@@ -215,6 +220,21 @@ function repr(a::Affine)
     return s
 end
 
+ #=
+ # Obtain the string representation of an affine form
+ # TESTING ONLY
+=#
+function reprit(center, deviation, indexes)
+    s = "$(center)"
+    if(length(deviation) > 0)
+        for i in 1:length(deviation)
+            s *= " + $(deviation[i])ϵ$(indexes[i])"
+        end
+    end
+    return s
+end
+
+convert(::Type{Affine}, x::Affine) = Affine(x)
 convert(::Type{Affine}, x::AffineCoeff) = Affine(x)
 convert(::Type{Affine}, x::AffineInt)   = Affine(x)
 
@@ -226,6 +246,7 @@ zero(x::Affine)      = convert(Affine, 0.)
 isone(x::Affine)     = x == one(Affine)
 iszero(x::Affine)    = x == zero(Affine)
 
+promote_rule(::Type{Affine},      ::Type{Affine})      = Affine
 promote_rule(::Type{Affine},      ::Type{AffineCoeff}) = Affine
 promote_rule(::Type{Affine},      ::Type{AffineInt})   = Affine
 promote_rule(::Type{AffineCoeff}, ::Type{Affine})      = Affine
@@ -325,25 +346,18 @@ end
 +(cst::AffineCoeff, a::Affine)::Affine = Affine(a, cst + a[0])
 -(cst::AffineCoeff, a::Affine)::Affine = Affine(a, cst - a[0])
 
-+(a::Affine, cst::AffineInt)::Affine = Affine(a, AffineCoeff(a[0] + cst))
--(a::Affine, cst::AffineInt)::Affine = Affine(a, AffineCoeff(a[0] - cst))
-+(cst::AffineInt, a::Affine)::Affine = Affine(a, AffineCoeff(cst + a[0]))
--(cst::AffineInt, a::Affine)::Affine = Affine(a, AffineCoeff(cst - a[0]))
++(a::Affine, cst::AffineInt)::Affine = Affine(a, convert(AffineCoeff, a[0] + cst))
+-(a::Affine, cst::AffineInt)::Affine = Affine(a, convert(AffineCoeff, a[0] - cst))
++(cst::AffineInt, a::Affine)::Affine = Affine(a, convert(AffineCoeff, cst + a[0]))
+-(cst::AffineInt, a::Affine)::Affine = Affine(a, convert(AffineCoeff, cst - a[0]))
 
 *(a::Affine, cst::AffineCoeff)::Affine = Affine(a, a[0] * cst, cst * a.deviations)
 *(cst::AffineCoeff, a::Affine)::Affine = Affine(a, cst * a[0], cst * a.deviations)
 
-*(a::Affine, cst::AffineInt)::Affine = Affine(a, AffineCoeff(a[0] * cst), 
+*(a::Affine, cst::AffineInt)::Affine = Affine(a, convert(AffineCoeff, a[0] * cst), 
                                               convert(Vector{AffineCoeff}, cst * a.deviations))
-*(cst::AffineInt, a::Affine)::Affine = Affine(a, AffineCoeff(cst * a[0]), 
+*(cst::AffineInt, a::Affine)::Affine = Affine(a, convert(AffineCoeff, cst * a[0]), 
                                               convert(Vector{AffineCoeff}, cst * a.deviations))
-
-function /(a::Affine, cst::Union{AffineCoeff, AffineInt})::Affine
-    if(cst == zero(cst))
-        throw(DomainError(a, "trying to divide by zero"))
-    end
-    Affine(a, a.cvalue * (1.0 / cst), (1.0 / cst) * a.deviations)
-end
 
  #=
  # a + p, where a, p are Affine
@@ -433,6 +447,7 @@ function *(a::Affine, p::Affine)::Affine
         end
     end
     devt[lindt] = rad(a)*rad(p) - 0.5*adjDeviation2
+    #@info "in function *(a::Affine, p::Affine)\na = $(repr(a))\np = $(repr(p))\nout = $(reprit(a[0]*p[0] + 0.5*adjCenter2, devt, indt))"
     return Affine(a[0]*p[0] + 0.5*adjCenter2, devt, indt)
 end
 
@@ -479,11 +494,27 @@ function inv(p::Affine)::Affine
     indt = addAffineIndex(p.indexes)
     devt = alpha * p.deviations
     devt = vcat(devt, delta)
+    #@info "in function inv(p::Affine)\np = $(repr(p))\nout = $(reprit(alpha*p[0] + dzeta, devt, indt))"
     return Affine(alpha*p[0] + dzeta, devt, indt)
 end
 
-/(cst::Union{AffineCoeff, AffineInt}, a::Affine)::Affine = cst * inv(a)
-/(a::Affine, p::Affine)::Affine   = a * inv(p)
+function /(a::Affine, cst::AffineCoeff)::Affine
+    if(cst == zero(cst))
+        throw(DomainError(a, "trying to divide by zero"))
+    end
+    return Affine(a, a.cvalue * (1.0 / cst), (1.0 / cst) * a.deviations)
+end
+
+function /(a::Affine, cst::AffineInt)::Affine
+    if(cst == zero(cst))
+        throw(DomainError(a, "trying to divide by zero"))
+    end
+    return Affine(a, a.cvalue * (1.0 / cst), (1.0 / cst) * a.deviations)
+end
+
+/(cst::AffineCoeff, a::Affine)::Affine = cst * inv(a)
+/(cst::AffineInt,   a::Affine)::Affine = cst * inv(a)
+/(a::Affine, p::Affine)::Affine = a * inv(p)
 
  #=
  # Obtain a^n where a is Affine and n is an integer
@@ -549,6 +580,7 @@ function ^(p::Affine, n::Int)
     indt = addAffineIndex(p.indexes)
     devt = alpha * p.deviations
     devt = vcat(devt, delta)
+    #@info "in function ^(p::Affine, n::Int)\np = $(repr(p))\nn = $(n)\nout = $(reprit(alpha*p[0] + dzeta, devt, indt))"
     return Affine(alpha*p[0] + dzeta, devt, indt)
 end
 

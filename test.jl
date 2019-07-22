@@ -1,6 +1,6 @@
 include("./helper.jl")
 
-disp(msg) = print("$(msg)\n")
+disp(msg) = print("$(repr(msg))\n")
 debug() = print("DEBUG\n")
 
 using Test, Random, IntervalArithmetic
@@ -111,6 +111,9 @@ function sameForm(a::Affine, p::Affine; tol::Float64=affineTOL)
     
     return true
 end
+
+sameForm(x::Vector{Affine}, y::Vector{Affine}; tol::Float64=affineTOL) = sameForm.(x, y, tol=tol) |> x -> reduce((b1, b2) -> b1 && b2, x)
+sameForm(x::Matrix{Affine}, y::Matrix{Affine}; tol::Float64=affineTOL) = sameForm.(x, y, tol=tol) |> x -> reduce((b1, b2) -> b1 && b2, x, dims=1) |> x -> reduce((b1, b2) -> b1 && b2, x)
 
  #=
  # Affine Arithmetic Common
@@ -474,13 +477,15 @@ end
  # Remark: ForwardDiff almost works as is; must make affines compact by removing zeros
 =#
 @testset "affine arithmetic ForwardDiff" begin
-    centers = [32.1, 27.3, 58.0]
+    centers = [32.1, 27.3, 58.0, 32.1]
     devs    = [[0.1, -0.2, 1.5, -2.0],
                [10.0, 0.5, 1.0], 
-               [-3.33, 9.0, -1.5, 5.25]]
+               [-3.33, 9.0, -1.5, 5.25],
+               [0.1]]
     inds    = [[1, 3, 4, 5],
-              [1, 4, 6],
-              [2, 3, 5, 6]]
+               [1, 4, 6],
+               [2, 3, 5, 6],
+               [1]]
     a1 = Affine(32.1, [0.1, -0.2, 1.5, -2.0], [1, 3, 4, 5])
     a2 = Affine(27.3, [10.0, 0.5, 1.0], [1, 4, 6])
     a3 = Affine(4.0,  [-3.33, 9.0, -1.5, 5.25], [2, 3, 5, 6])
@@ -517,20 +522,20 @@ end
         @test res == actual
     end
 
-    @testset "derivative of x^2" begin
-        f(x::Real)  = x^2
-        df(x::Real) = 2*x
-        a1          = Affine(centers[1], devs[1], inds[1])
-        @test df(a1) == ForwardDiff.derivative(f, a1)
+    @testset "derivative of const / x" begin
+        f(x::Real) = 2.35/x
+        df(x::Real) = -(2.35 /x /x)
+        a1         = Affine(centers[1], devs[1], inds[1])
+        @test sameForm(df(a1), ForwardDiff.derivative(f, a1))
     end
 
      #=
-     # Remark: `df(x::Real) = 1` also works
+     # Remark: `df(x::Real) = 1` also works when using `==`
+     # TODO: add more cases
     =#
     @testset "derivative of x^n" begin
         f(x::Real)  = x
         df(x::Real) = Affine(1)
-        resetLastAffineIndex()
         a1          = Affine(centers[1], devs[1], inds[1])
         @test sameForm(df(a1), ForwardDiff.derivative(f, a1))
         for n in 1:5
@@ -540,12 +545,47 @@ end
         end
     end
 
+     #=
+     # FAIL when f(x::Real) = 1 but success when f(x::Real)  = Affine(1)
+     # Remark: `df(x::Real) = 0` also works when using `==`
+    =#
+    @testset "derivative of constants" begin
+        f(x::Real)  = Affine(2.0)
+        df(x::Real) = Affine(0)
+        a1          = Affine(centers[1], devs[1], inds[1])
+        @test sameForm(df(a1), ForwardDiff.derivative(f, a1))
+    end
+
+     #=
+     # FAIL
+    =#
+    @testset "derivative of x^-2" begin
+        #f(x::Real)  = x^(-2)
+        #df(x::Real) = -2*x^(-3)
+        f(x::Real)  = inv(x)^2
+        df(x::Real) = 2*inv(x) * -abs2(inv(x)) # actual derivative
+        #a1 = Affine(centers[1], devs[1], inds[1])
+        a1 = Affine(centers[1], Vector{Float64}(), Vector{Int}())
+        #disp("begin")
+        disp(df(a1))
+        disp(ForwardDiff.derivative(f, a1))
+        @test sameForm(df(a1), ForwardDiff.derivative(f, a1))
+        a4 = Affine(centers[4], devs[4], inds[4])
+        disp(df(a4))
+        disp(ForwardDiff.derivative(f, a4))
+        @test sameForm(df(a4), ForwardDiff.derivative(f, a4))
+    end
+
     @testset "gradient" begin
         f(x::Vector)  = x[1]*x[3] + 2.0*x[2]*x[1] - x[3]*x[2]
         gf(x::Vector) = [x[3] + 2.0*x[2], 2.0*x[1] - x[3], x[1] - x[2]]
+        a1           = Affine(centers[1], devs[1], inds[1])
+        a2           = Affine(centers[2], devs[2], inds[2])
+        a3           = Affine(centers[3], devs[3], inds[3])
         ax = [a1, a2, a3]
-        res = ForwardDiff.gradient(f, ax)
-        @test compact(res) == gf(ax)
+        #disp(gf(ax))
+        #disp(ForwardDiff.gradient(f, ax))
+        @test sameForm(gf(ax), compact(ForwardDiff.gradient(f, ax)))
     end
 
     @testset "hessian" begin
