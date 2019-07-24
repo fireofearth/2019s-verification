@@ -7,3 +7,6 @@
 [submodule "/home/fireofearth/res/mitchell-ian/2019s-verification/module/diff/ForwardDiff.jl"]
 	path = /home/fireofearth/res/mitchell-ian/2019s-verification/module/diff/ForwardDiff.jl
 	url = https://github.com/fireofearth/ForwardDiff.jl.git
+[submodule "/home/fireofearth/res/mitchell-ian/2019s-verification/module/taylor/TaylorModels.jl"]
+	path = /home/fireofearth/res/mitchell-ian/2019s-verification/module/taylor/TaylorModels.jl
+	url = https://github.com/fireofearth/TaylorModels.jl.git

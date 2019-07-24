@@ -14,7 +14,6 @@ module AffineArithmetic
  # TODO: finish documentation
  # TODO: aaflib trig. functions sin, cos; requires me to know
  # what implementation changes Goubault/Putot made for sin, cos
- # TODO: aaflib pow is supported?
  # TODO: figure out what changes Goubault/Putot made for aaflib
  # TODO: Goubault/Putot functions mult_eps, hull
  # TODO: complete + test support for ForwardDiff
@@ -73,6 +72,7 @@ debug() = print("DEBUG\n")
  # Specification:
  # - force setLastAffineIndex to call whenever a new Affine instance is created.
  #
+ # TODO: test methods
  # TODO: turn this into a decorator/macro and force calls
  # TODO: confirm functions that use `last` in aaflib are supported
 =#
@@ -107,7 +107,6 @@ let lastAffineIndex::Int = 0
      #=
      # Given an array representing indexes of affine form, set lastAffineIndex to the last
      # index only if the last index is larger than lastAffineIndex
-     # TODO: test
     =#
     global function setLastAffineIndex(indexes::Vector{AffineInd})
         if(!isempty(indexes))
@@ -130,10 +129,7 @@ end
  # - Affine indexes are always in sorted order from lowest to highest
  # - elts in Affine indexes are unique
  #
- # TODO: it's not clear whether `length` and `size` are redundant
- # TODO: refactor to get rid of length and size, can query vector length
- # TODO: we don't need to write most getters, since Affine is immutable
- # TODO: make this inherit AbstractArrays
+ # TODO: it's not clear whether `length` and `size` are redundant; refactor to get rid of length and size, can query vector length
  # TODO: enable iterator, indexing
 =#
 struct Affine <: Real
@@ -259,12 +255,6 @@ rad(a::Affine)::AffineCoeff = sum(abs.(a.deviations))
 
 Interval(a::Affine) = Interval(a[0] - rad(a), a[0] + rad(a))
 
- #=
- # Goubault+Putot methods
- # Specification: convert_int, reduce_aaf, rad
- # TODO: implement
-=#
-
   #=
   # Get maximum / minimum of an Affine
  =#
@@ -277,14 +267,15 @@ getAbsMin()::AffineCoef  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 firstindex(a::Affine) = length(a) > 0 ? a.indexes[1] : 0
 lastindex(a::Affine)  = length(a) > 0 ? last(a.indexes) : 0 
 
-#zero(x::DataType) = 
-#one
-#iszero
-#isone
-
  #=
  # Unknown methods
  # Specification: compact, sumup
+ # TODO: implement
+=#
+
+ #=
+ # Goubault+Putot methods
+ # Specification: convert_int, reduce_aaf
  # TODO: implement
 =#
 
@@ -406,6 +397,23 @@ end
 -(a::Affine) = Affine(a, -a[0], -1 * a.deviations)
 
  #=
+ # All non-affine operations (*,/,inv,^,sin,cos) default to Chebyshev approximation.
+ #
+ # Specification for univariate Chebyshev approximation of bounded, twice differentiable
+ # f : R -> R and affine form x = x₀ + ∑ᴺᵢxᵢϵᵢ
+ #
+ # 1. let a = x₀ - ∑ᴺᵢ|xᵢ|, and b = x₀ + ∑ᴺᵢ|xᵢ|. We require f''(u) ≠ 0 for u ∈ (a, b)
+ # 2. let α = (f(b) - f(a)) / (b - a) be the slope of the line l(x) that interpolates the
+ # points (a, f(a)) and (b, f(b)). l(x) = αx + (f(a) - αa)
+ # 3. solve for u ∈ (a, b) such that f'(u) = α. By Mean-value theorem u must exists.
+ # 4. ζ = ½(f(u) + l(u)) - αu
+ # 5. δ = ½|f(u) - l(u)|
+ #
+ # Specification for bivariate Chebyshev approximation of ??? f : R² -> R and affine
+ #
+=#
+
+ #=
  # Approximates a * p where a, p are Affine
  # There are three affine products based on the appoximation of the coefficient for μₖ
  #   xy = x₀ŷ₀ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + ½∑[over 1⩽i,j⩽n] |xᵢyⱼ+yᵢxⱼ|μₖ
@@ -452,12 +460,30 @@ function *(a::Affine, p::Affine)::Affine
 end
 
  #=
- # Obtain 1/a where a is Affine
- #
- # Specification:
- # - Inverse does not exist if 0 ∈ [p[0] - rad(p), p[0] + rad(p)] (which is given by guard a*b < EPSILON)
- # - 
- # TODO: Complete documentation: explain how this works?
+Obtain 1/a where a is Affine
+
+Specification:
+- Inverse does not exist if 0 ∈ [p[0] - rad(p), p[0] + rad(p)] (which is given by guard 
+a*b < EPSILON)
+- uses Chebyshev approximation:
+
+1. let a = x₀ - ∑ᴺᵢ|xᵢ|, and b = x₀ + ∑ᴺᵢ|xᵢ|.
+
+2. let α = -1/ab be the slope of the interpolation line l(x)
+
+3. solve for u ∈ (a, b) such that -1/u² = -1/ab
+If a, b > 0, then u = √ab and l(u) = 1/a + 1/b - 1/√ab
+If a, b < 0, then u = -√ab and l(u) = 1/a + 1/b + 1/√ab
+
+4.
+If a, b > 0, then ζ = ½(1/a + 1/b) + 1/√ab
+If a, b < 0, then ζ = ½(1/a + 1/b) - 1/√ab
+
+5. δ = ½|f(u) - l(u)|
+If a, b > 0, then δ = ½(1/a + 1/b) - 1/√ab
+If a, b < 0, then δ = -½(1/a + 1/b) - 1/√ab
+
+# TODO: clean code, refactor
 =#
 function inv(p::Affine)::Affine
     if(length(p) == 0)
@@ -494,7 +520,6 @@ function inv(p::Affine)::Affine
     indt = addAffineIndex(p.indexes)
     devt = alpha * p.deviations
     devt = vcat(devt, delta)
-    #@info "in function inv(p::Affine)\np = $(repr(p))\nout = $(reprit(alpha*p[0] + dzeta, devt, indt))"
     return Affine(alpha*p[0] + dzeta, devt, indt)
 end
 
@@ -518,7 +543,8 @@ end
 
  #=
  # Obtain a^n where a is Affine and n is an integer
- # TODO: explain how this works?
+ #
+ # TODO: documentation
 =#
 function ^(p::Affine, n::Int)
     if(length(p) == 0)
@@ -536,38 +562,38 @@ function ^(p::Affine, n::Int)
     r = rad(p)
     a = p[0] - r
     b = p[0] + r
-    pa = a^n
-    pb = b^n
+    powa = a^n
+    powb = b^n
     if(a*b < EPSILON && n < 0)
         throw(DomainError(p, "trying to invert zero"))
     end
 
     if(approximationType == CHEBYSHEV)
         if(r > MINRAD)
-            alpha = (pb - pa) / (b - a)
+            alpha = (powb - powa) / (b - a)
         else
-            alpha = n * pa / (a + EPSILON)
+            alpha = n * powa / (a + EPSILON)
         end
 
         xₐ = -abs(alpha / n)^(1.0 / (n - 1.0))
         xᵦ = -xₐ
 
         if(xₐ > a)
-            pxₐ = xₐ^n
+            powxₐ = xₐ^n
         else
             xₐ  = a
-            pxₐ = pa
+            powxₐ = powa
         end
 
         if(xᵦ < b)
-            pxᵦ = xᵦ^n
+            powxᵦ = xᵦ^n
         else
             xᵦ  = b
-            pxᵦ = pb
+            powxᵦ = powb
         end
 
-        yₐ= pxₐ - alpha*xₐ
-        yᵦ= pxᵦ - alpha*xᵦ
+        yₐ= powxₐ - alpha*xₐ
+        yᵦ= powxᵦ - alpha*xᵦ
         delta = 0.5*(yₐ - yᵦ)
         dzeta = 0.5*(yₐ + yᵦ)
 
@@ -580,23 +606,69 @@ function ^(p::Affine, n::Int)
     indt = addAffineIndex(p.indexes)
     devt = alpha * p.deviations
     devt = vcat(devt, delta)
-    #@info "in function ^(p::Affine, n::Int)\np = $(repr(p))\nn = $(n)\nout = $(reprit(alpha*p[0] + dzeta, devt, indt))"
     return Affine(alpha*p[0] + dzeta, devt, indt)
 end
 
  #=
+ # obtain sin(p) where p is Affine
  #
- #
+ # TODO: documentation
+ # TODO: should we compact p?
 =#
-# TODO
 function sin(p::Affine)::Affine
     if(length(p) == 0)
         return Affine(sin(p[0]))
     end
+   
+    r = rad(p)
+    a = p[0] - r
+    b = p[0] + r
+    if(a > π || a < -π)
+        a -= 2*π * floor(a / (2*π))
+        a -= (a > π) ? 2*π : 0.0
+        b = a + 2*r
+    end
+    sina = sin(a)
+    sinb = sin(b)
 
+    if(b > 0 || (b < π && a > 0))
+        # Use Chebyshev approximation
+        if(r > 1.0E-6)  
+            alpha = (sinb - sina) / (b - a)
+            sol   = sign(a)*acos(alpha)
+            # Here f(x) = sin ∘ acos(x) = √(1 - x²)
+            fsol  = √(1 - alpha^2)
+            dzeta = (sina + fsol - alpha*(a + sol)) / 2
+            delta = abs(fsol - sina - alpha*(sol - a)) / 2
+        else
+            alpha = cos(a)
+            dzeta = sina - alpha*a
+            delta = 0.0
+        end
+    else
+        # Use min range optimization
+        if(a <= 0)
+            alpha = 1
+            delta = (-sinb + sina - alpha*(a - b)) / 2
+        else
+            alpha = -1
+            delta = (sinb - sina + alpha*(a - b)) / 2
+        end
+        dzeta = (sina + sinb - alpha*(a + b)) / 2
+    end
+
+    indt = addAffineIndex(p.indexes)
+    devt = alpha * p.deviations
+    devt = vcat(devt, delta)
+    return Affine(alpha*p[0] + dzeta, devt, indt)
 end
 
-#function ^(a::Affine) const;
+ #=
+ # obtain cos(p) where p is Affine
+=#
+function cos(p::Affine)::Affine
+    return sin(p + π/2.0)
+end
 
  #=
  # Removes all noise terms xᵢϵᵢ coefficients with |xᵢ| < tol

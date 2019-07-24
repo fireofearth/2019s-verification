@@ -1,3 +1,11 @@
+---
+title: "Documentation"
+output:
+  pdf_document:
+    pandoc_args: ["--lua-filter=scripts/task-list.lua"]
+---
+
+These notes are made using R Markdown.
 
 ## Verification Study
 
@@ -30,6 +38,23 @@ Affine arithmetic does not seem to be supported (well) in Julia. Interval arithm
 Step 2: for each subdivision
 
 call set_initialconditions (ode_def.cpp) to set x to inputs which are intervals, xCenter which are midpoints of intervals (as floats), and J = Id. Recall x, xCenter and J are all vectors and matrices containing AAF.
+
+## Affine Arithmetic
+
+
+All non-affine operations (\*,/,inv,^,sin,cos) default to Chebyshev approximation.
+
+Specification for univariate Chebyshev approximation of bounded, twice differentiable
+f : R -> R and affine form x = x₀ + ∑ᴺᵢxᵢϵᵢ
+
+1. let a = x₀ - ∑ᴺᵢ|xᵢ|, and b = x₀ + ∑ᴺᵢ|xᵢ|. We require f''(u) ≠ 0 for u ∈ (a, b)
+2. let α = (f(b) - f(a)) / (b - a) be the slope of the line l(x) that interpolates the
+points (a, f(a)) and (b, f(b)). l(x) = αx + (f(a) - αa)
+3. solve for u ∈ (a, b) such that f'(u) = α. By Mean-value theorem u must exists.
+4. ζ = ½(f(u) + l(u)) - αu
+5. δ = ½|f(u) - l(u)|
+
+Specification for bivariate Chebyshev approximation of ??? f : R² -> R and affine
 
 ## Original implementation
 
@@ -163,7 +188,7 @@ Required components to reproduce RINO for Julia:
     + This library is a thin implementation so I am implementing affine arithmetic from the beginning.
 
 - taylor models <https://github.com/JuliaIntervals/TaylorModels.jl>
-
+    + I am hesitant on using this library before making significant progress in understanding RINO.
 
 ### Components
 
@@ -173,6 +198,12 @@ AffineTaylorModel
 ODECommon  
 ODEIntegration  
 
+#### Modal intervals
+
+Julia IntervalArithmetic [documentation](https://juliaintervals.github.io/IntervalArithmetic.jl/latest/).
+
+**Outstanding**: operations should return inner approximations of improper integrals and outer approximations of proper integrals.
+
 #### Automatic differentiation
 
 [Cassette](https://jrevels.github.io/Cassette.jl/latest/whycassette.html) was originally designed for better language support for automatic differentiation.
@@ -180,11 +211,24 @@ ODEIntegration
 
 Both [AutoDiffSource](https://github.com/gaika/AutoDiffSource.jl) and ReverseDiffSource are deprecated and limited to Julia version 0.5 (and hence in JuliaAttic)
 
-By the process of elimination [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl) is the one I will be using. I have to modify the source code so that we support Affine types. In addition Affine must support the following:
+By the process of elimination [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl) is the one I will be using.
 
-`one` - return a multiplicative identity for x: a value such that one(x)\*x == x\*one(x) == x. Alternatively one(T) can take a type T, in which case one returns a multiplicative identity for any x of type T.
+In addition Affine must support the following:
 
-`isone` - return true if x == one(x) if x is an array, this checks whether x is an identity matrix.
+`Base.convert`   
+`Base.one` - return a multiplicative identity for x: a value such that one(x)\*x == x\*one(x) == x. Alternatively one(T) can take a type T, in which case one returns a multiplicative identity for any x of type T.  
+`Base.isone` - return true if x == one(x) if x is an array, this checks whether x is an identity matrix.  
+`Base.zero` -  
+`Base.iszero`  
+`Base.promotion_rule` -  
+
+**Outstanding**: ForwardDiff does not give good expressions for derivatives when the original expression contains inverse (i.e. `1.0 /x`, `inv(x)`, or `x^(-1)`). For example:
+
+f(x) = x^(-2)
+expected expression for derivative: d f(x) /dx = -2x^(-3)
+ForwardDiff gives expressions slightly more complicated than: 2*inv(x) * -abs2(inv(x)) (I couldn't find the exact expression)
+
+This makes it pretty challenging to test ForwardDiff on affine forms. Since affine operations (\*, /) only computes approximations, the expression of the formula matters and a more concise formula gives approximations that can differ by 10^-1. I'm going to let this be for now...
 
 ### Procedure
 
