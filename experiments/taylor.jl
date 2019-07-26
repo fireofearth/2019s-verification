@@ -15,7 +15,7 @@ disp( ftm(1) )
 
 # Now the plot
 using Plots; pyplot()
-/bin/bash: q: command not found
+# /bin/bash: q: command not found
 plot!(ftm, label="taylor model")
 savefig("taylor_plot.png")
 print("done\n")

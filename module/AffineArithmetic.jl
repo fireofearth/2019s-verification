@@ -27,14 +27,14 @@ import IntervalArithmetic: inf, sup
 import Base:
     zero, one, iszero, isone, convert, isapprox, promote_rule,
     getindex, length, repr, size, firstindex, lastindex,
-    <, <=, >, >=, ==, +, -, *, /, inv, ^
+    <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos
 
 using Logging
 
 export
     zero, one, iszero, isone, convert, isapprox, promote_rule,
     getindex, length, repr, size, firstindex, lastindex,
-    <, <=, >, >=, ==, +, -, *, /, inv, ^,
+    <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos,
     AffineCoeff, AffineInd, AffineInt, Affine, affineTOL,
     Interval, inf, sup,
     rad, getMax, getMin, getAbsMax, getAbsMin,

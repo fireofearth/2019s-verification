@@ -3,6 +3,10 @@ title: "Documentation"
 output:
   pdf_document:
     pandoc_args: ["--lua-filter=scripts/task-list.lua"]
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 These notes are made using R Markdown.
@@ -41,30 +45,26 @@ call set_initialconditions (ode_def.cpp) to set x to inputs which are intervals,
 
 ## Affine Arithmetic
 
-
 All non-affine operations (\*,/,inv,^,sin,cos) default to Chebyshev approximation.
 
 Specification for univariate Chebyshev approximation of bounded, twice differentiable
-f : R -> R and affine form x = x₀ + ∑ᴺᵢxᵢϵᵢ
+$f : \mathbb{R} \rightarrow \mathbb{R}$ and affine form $x = x_0 + \sum^N_i x_i\epsilon_i$
 
-1. let a = x₀ - ∑ᴺᵢ|xᵢ|, and b = x₀ + ∑ᴺᵢ|xᵢ|. We require f''(u) ≠ 0 for u ∈ (a, b)
-2. let α = (f(b) - f(a)) / (b - a) be the slope of the line l(x) that interpolates the
-points (a, f(a)) and (b, f(b)). l(x) = αx + (f(a) - αa)
-3. solve for u ∈ (a, b) such that f'(u) = α. By Mean-value theorem u must exists.
-4. ζ = ½(f(u) + l(u)) - αu
-5. δ = ½|f(u) - l(u)|
+1. let $a = x_0 - \sum^N_i |x_i|$, and $b = x_0 + \sum^N_i |x_i|$. We require $f''(u) \neq 0$ for $u \in (a, b)$
+2. let $\alpha = (f(b) - f(a)) / (b - a)$ be the slope of the line $l(x)$ that interpolates the points $(a, f(a))$ and $(b, f(b))$. Then $l(x) = \alpha x + (f(a) - \alpha a)$.
+3. solve for $u \in (a, b)$ such that $f'(u) = \alpha$. By Mean-value theorem $u$ must exists.
+4. $\zeta = \frac{1}{2} (f(u) + l(u)) - \alpha u$
+5. $\delta = \frac{1}{2} |f(u) - l(u)|$
 
-Specification for bivariate Chebyshev approximation of ??? f : R² -> R and affine
+Specification for bivariate Chebyshev approximation of ??? $f : \mathbb{R}^2 \rightarrow \mathbb{R}$ and affine
 
 ## Original implementation
 
 Good news! We have the software that was used for Goubault+Putot's last 3 years of research: Robust INner and Outer Approximated Reachability (RINO) <https://github.com/cosynus-lix/RINO> as well as the dependencies FILIB++ <http://www2.math.uni-wuppertal.de/wrswt/software/filib.html> for interval computations, and FADBAD <http://www.fadbad.com/fadbad.html> for automatic diff.
 
-### Details and specifications
+### Gotchas
 
-#### Unused for loop
-
-The below for loop and function `init_subdiv()` is never used so we can remove it entirely. To simplify we may ignore the variables `inputs_save`, `center_inputs`.
+**Unused for loop**: the below for loop and function `init_subdiv()` is never used so we can remove it entirely. To simplify we may ignore the variables `inputs_save`, `center_inputs`.
 
 ```
 for (current_subdiv=1; current_subdiv <= nb_subdiv_init; current_subdiv++) {
@@ -73,41 +73,46 @@ for (current_subdiv=1; current_subdiv <= nb_subdiv_init; current_subdiv++) {
 }
 ```
 
-#### Redundant variables
+**Redundant variables**: in all simulations, `jacdim` and `sysdim` contain identical values. We may replace these variables with `sysdim`.
 
-In all simulations, `jacdim` and `sysdim` contain identical values. I am choosing `sysdim`.
+### Modal Arithmetic
 
-#### Modal Arithmetic
+Modal arithmetic is only used at the last step of the procedure at every time step, specifically `HybridStep_ode::TM_evalandprint_solutionstep()`. The `InnerOuter()` function obtains inner approximations from the taylor models built in `HybridStep_ode::TM_build()`. All other calculations are computed using FADBAD++ using affine forms as values.
 
-Modal arithmetic is used at the last step of the procedure run at every time step via the `InnerOuter()` function to obtain inner approximations from the taylor models. All other calculations are done using taylor models using affine arithmetic.
+### Affine Arithmetic
 
-#### Affine Arithmetic
+Affine arithmetic is supported by the `aaflib` library.
 
-Affine arithmetic is done using the `aaflib` library
+### Automatic Differentiation
 
-#### Automatic Differentiation
+RINO requires [FADBAD++](http://www.fadbad.com/fadbad.html) for automatic differentiation. This library is much more powerful than the JuliaDiff package in that it allows for 
 
-Automatic differentiation is called on the jacobians of the ODE function at each time step.
+- 
+- evaluating derivatives 
+
+- T is used for taylor expansion.
+- F is used for forward differentiation.
+
+Given ODE function $f : R \rightarrow R$ where $\vec{x}' = f(\vec{x})$, forward differentiation is called on $f$ to obtain $f'$ and then the taylor approximation $p(f')$ of $f'$ is obtained. The Julia implementation requires this sequence of operations to occur.
 
 ### Classes
 
-#### OdeVar
+`OdeVar` represents the taylor coefficients of the taylor model in `TM_Jac`. Automatic differentiation using FADBAD is called on the member variables of `OdeVar`.
 
-Is used to represent the taylor coefficients of the taylor model in `TM_Jac`. Automatic differentiation using FADBAD is called on the member variables of `OdeVar`.
-
-x (vector<T<AAF>>): independent variables  
-xp (vector<T<AAF>>): dependent variables  
-
-#### Ode
-
-Is used to represent the taylor coefficients of the taylor model in `TM_val`.
-
-`Ode` members:
+Members:
 
 x (vector<T<AAF>>): independent variables  
 xp (vector<T<AAF>>): dependent variables  
 
-`Ode` functions:
+
+`Ode` represents the taylor coefficients of the taylor model in `TM_val`.
+
+Members:
+
+x (vector<T<AAF>>): independent variables  
+xp (vector<T<AAF>>): dependent variables  
+
+Functions:
 
 `Ode::Ode()` constructor  
 `Ode::Ode(OdeFunc f)` constructor that sets `x`, `xp` by evaluating them using the function `f` passed to it.  
@@ -168,29 +173,83 @@ g++ -L/usr/lib -L$(pwd)/aaflib-0.1 -L${HOME}/lib/filib-3.0.2/lib -o testsuite \
 
 ./testsuite --log_level=test_suite
 
-# in the case that the testsuite does not detect libaaf.so we need to add the library path for this shared resource.
+# in the case that the testsuite does not detect libaaf.so we need to add the 
+# library path for this shared resource.
 LD_LIBRARY_PATH=/usr/lib:/home/fireofearth/res/mitchell-ian/programs/rino-hscc17/aaflib-0.1/
 export LD_LIBRARY_PATH
 ```
 
 ## Julia RINO implementation
 
-Required components to reproduce RINO for Julia:
-
-- automatic diff <https://github.com/JuliaDiff>
-    + I'm concerned this library is unusable for functions that have inputs and outputs that are not type `Real`. 
-
-- intervals <https://github.com/JuliaIntervals/IntervalArithmetic.jl>
-    + I'm implementing modal intervals on top of IntervalArithmetic library.
-    + I'm considering the reimplementation of IntervalArithmetic itself because the rounding of improper integrals uses inner rounding.
-
-- affine arithmetic <https://github.com/JuliaIntervals/AffineArithmetic.jl>
-    + This library is a thin implementation so I am implementing affine arithmetic from the beginning.
-
-- taylor models <https://github.com/JuliaIntervals/TaylorModels.jl>
-    + I am hesitant on using this library before making significant progress in understanding RINO.
-
 ### Components
+
+Required functionality:
+
+- Deriving taylor approximations from functions, derivatives, gradients, and jacobians.
+- Automatic differentiation to compute derivatives, gradients and jacobians of functions at affine points.
+- Converting affine forms to intervals.
+- Modal interval arithmetic: in particular we want to evaluate the mean-value extension (multiplication, addition, and matrix vector multiplication).
+
+A critique of existing Julia components:
+
+**real numbers** (Base package)
+
+The abstract type Real is a supertype of floats, integers and unsigned integers and Real has accommodating Base methods:
+
+`iszero`, `isone`, `one`, `zero` for add./mult. identities.  
+`promotion_rule`  
+`convert`  
+`rounding`, `setrounding`  
+`isapprox`  
+
+**automatic forward differentiation** <https://github.com/JuliaDiff/ForwardDiff.jl>
+documentation: <http://www.juliadiff.org/ForwardDiff.jl/stable/>  
+
+Points:
+
+- `ForwardDiff.derivative()` (as well as `.gradient()`, `jacobian()`) does not return a function, but rather produces a method that can be used to evaluate the derivative. This method only accepts subtypes of Real.
+- There is an outstanding concern that library ForwardDiff is unusable for functions that have inputs and outputs that are not type Real:
+    + It is possible to compute the $df(x)/dx$ where $x$ is affine, provided that the type Affine is made a subset of type Real. However, this leads to some concerns (see section on Affine Arithmetic).
+- RINO obtains taylor series from derivatives (and gradients, jacobians). As of now there is no clear way to do this in Julia.
+    + It seems possible to change the source code of ForwardDiff to allow for arbitrary inputs.
+
+**intervals** <https://github.com/JuliaIntervals/IntervalArithmetic.jl>
+documentation: <https://juliaintervals.github.io/IntervalArithmetic.jl/stable/>  
+
+Points:
+
+- Originally I considered implementing modal intervals (using the quantified modal interval interpretation $([a, b], Q) \in \mathbb{IR} \times \{ \forall, \exists \}$) on top of IntervalArithmetic library. However IntervalArithmetic only admits outer approximations for intervals. Outer approximations are are done automatically within each interval operation.
+- There are two possible approaches:
+    + Modify IntervalArithmetic directly so that it admits and inner approximations of intervals. It may be possible to utilize exists macros that set approximations in package.
+    + Create a completely new IntervalArithmetic library. In this case we may only need to implement modal interval multiplication and addition (matrix vector multiplication can invoke interval multiplication).
+
+**affine** <https://github.com/JuliaIntervals/AffineArithmetic.jl>
+documentation: none  
+
+Points:
+
+- This library is currently a thin implementation (only implemented +, -, \*, /, ==, zero, one, range) so I am implementing an affine arithmetic library from scratch. This library is being actively developed. Around mid-July, the went from one to four files.
+- Any Julia library for affines must correspond with C++'s `aaflib` library. In particular it should use the same approximation Chebyshev approximation method for non-affine operations, as well as all elementary functions and binary arithmetic operations.
+- Any implementation of affine forms must be able to save deviation coefficients in a compact manner. Otherwise, vectors for coefficients will increase linearly by the number of (non-affine) operations (something approaching $O(n^2)$ space considering affine forms proliferate).
+
+**taylor series** <https://github.com/JuliaIntervals/TaylorSeries.jl>  
+documentation: <http://www.juliadiff.org/TaylorSeries.jl/stable/>  
+
+Points:
+
+- Interestingly, TaylorSeries does not provide a method that takes a function as input to evaluate a taylor approximation. Instead it provides types Taylor1 and TaylorN that once passed as variables to a function generates a taylor approximation as output. This infers that we can obtain a taylor approximation of a derivative of $f$ when passing $f$ and an instance of Taylor1 to $ForwardDiff.derivative()$.
+- TaylorSeries supports arbitrary types as coefficients (limitations?).
+
+**taylor models** <https://github.com/JuliaIntervals/TaylorModels.jl>
+documentation: <https://juliaintervals.github.io/TaylorModels.jl/stable/>  
+
+Points:
+
+- Is built on top of the TaylorSeries module to provide rigorous bounds for the enclosure representing the error term of a taylor approximation.
+- It may be possible to use TaylorModels to obtain an outer approximation of the Jacobian at each time step, I am hesitant on making this library a component of the Julia RINO port until I understand more on how inner approximations are computed in RINO.
+- This is the leading package in Julia for validated numerics, and hence I'm interested in benchmarking RINO with TaylorModels.
+
+Internal Julia modules:
 
 ModalInterval  
 AffineArithmetic  
@@ -198,37 +257,64 @@ AffineTaylorModel
 ODECommon  
 ODEIntegration  
 
-#### Modal intervals
+### Development Environment
+
+OS: Linux, Arch Linux  
+System package manager: pacman  
+Distribution Environment: Anaconda 3  
+Python: >3.5  
+Python package manager: conda, pip  
+Julia version: 1.x  
+
+
+
+### Modal interval arithmetic
 
 Julia IntervalArithmetic [documentation](https://juliaintervals.github.io/IntervalArithmetic.jl/latest/).
 
 **Outstanding**: operations should return inner approximations of improper integrals and outer approximations of proper integrals.
 
-#### Automatic differentiation
+### Affine arithmetic
+
+Non-affine operations can be approximated in $O(1)$ runtime by Chebyshev approximation.
+
+Complete discourse on interval and affine arithmetic operations are discussed in the paper [Self-Validated Numerical Methods and Applications (1997)](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.36.8089) by Jorge Stolfi, Luiz Henrique De Figueiredo.
+
+Implemented functionality:
+
+zero, one, iszero, isone, convert, isapprox, promote_rule,
+getindex, length, repr, size, firstindex, lastindex,
+<, <=, >, >=, ==, +, -, \*, /, inv, ^, sin, cos,
+Affine
+Interval, inf, sup,
+rad, getMax, getMin, getAbsMax, getAbsMin,
+compact
+
+### Automatic differentiation
 
 [Cassette](https://jrevels.github.io/Cassette.jl/latest/whycassette.html) was originally designed for better language support for automatic differentiation.
-[AutoGrad](https://github.com/denizyuret/AutoGrad.jl) is a port of Python [autograd](https://github.com/HIPS/autograd). I'm avoiding this package due to lack of documentation
+[AutoGrad](https://github.com/denizyuret/AutoGrad.jl) is a port of Python [autograd](https://github.com/HIPS/autograd). I'm avoiding this package due to lack of documentation.
 
-Both [AutoDiffSource](https://github.com/gaika/AutoDiffSource.jl) and ReverseDiffSource are deprecated and limited to Julia version 0.5 (and hence in JuliaAttic)
+Both [AutoDiffSource](https://github.com/gaika/AutoDiffSource.jl) and ReverseDiffSource are deprecated and limited to Julia version 0.5 (and the are hence in the JuliaAttic list)
 
 By the process of elimination [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl) is the one I will be using.
 
 In addition Affine must support the following:
 
-`Base.convert`   
+`Base.convert` -  
 `Base.one` - return a multiplicative identity for x: a value such that one(x)\*x == x\*one(x) == x. Alternatively one(T) can take a type T, in which case one returns a multiplicative identity for any x of type T.  
 `Base.isone` - return true if x == one(x) if x is an array, this checks whether x is an identity matrix.  
 `Base.zero` -  
 `Base.iszero`  
 `Base.promotion_rule` -  
 
+**Things to try**:
+
 **Outstanding**: ForwardDiff does not give good expressions for derivatives when the original expression contains inverse (i.e. `1.0 /x`, `inv(x)`, or `x^(-1)`). For example:
 
-f(x) = x^(-2)
-expected expression for derivative: d f(x) /dx = -2x^(-3)
-ForwardDiff gives expressions slightly more complicated than: 2*inv(x) * -abs2(inv(x)) (I couldn't find the exact expression)
+I expected the expression `f(x) = x^(-2)` to have the derivative `df(x) /dx = -2x^(-3)`. However ForwardDiff gives an expressions more complicated than: `2*inv(x) * -abs2(inv(x))`. I was unable to find the exact expression despite using the DiffLogger module I created (in `module`).
 
-This makes it pretty challenging to test ForwardDiff on affine forms. Since affine operations (\*, /) only computes approximations, the expression of the formula matters and a more concise formula gives approximations that can differ by 10^-1. I'm going to let this be for now...
+This makes it pretty challenging to test ForwardDiff on affine forms. Since affine operations (\*, /) only computes approximations, the expression of the formula matters and a more concise formula gives approximations that can differ by `10E-1`. Since this does not aversely affect the goal of porting RINO to Julia I'm ignoring this for now.
 
 ### Procedure
 
