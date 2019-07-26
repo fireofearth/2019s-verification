@@ -1682,7 +1682,8 @@ export LD_LIBRARY_PATH</code></pre>
 <code>convert</code><br />
 <code>rounding</code>, <code>setrounding</code><br />
 <code>isapprox</code></p>
-<p><strong>automatic forward differentiation</strong> <a href="https://github.com/JuliaDiff/ForwardDiff.jl" class="uri">https://github.com/JuliaDiff/ForwardDiff.jl</a> documentation: <a href="http://www.juliadiff.org/ForwardDiff.jl/stable/" class="uri">http://www.juliadiff.org/ForwardDiff.jl/stable/</a></p>
+<p><strong>automatic forward differentiation</strong> <a href="https://github.com/JuliaDiff/ForwardDiff.jl" class="uri">https://github.com/JuliaDiff/ForwardDiff.jl</a><br />
+documentation: <a href="http://www.juliadiff.org/ForwardDiff.jl/stable/" class="uri">http://www.juliadiff.org/ForwardDiff.jl/stable/</a></p>
 <p>Points:</p>
 <ul>
 <li><code>ForwardDiff.derivative()</code> (as well as <code>.gradient()</code>, <code>jacobian()</code>) does not return a function, but rather produces a method that can be used to evaluate the derivative. This method only accepts subtypes of Real.</li>
@@ -1695,7 +1696,8 @@ export LD_LIBRARY_PATH</code></pre>
 <li>It seems possible to change the source code of ForwardDiff to allow for arbitrary inputs.</li>
 </ul></li>
 </ul>
-<p><strong>intervals</strong> <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl" class="uri">https://github.com/JuliaIntervals/IntervalArithmetic.jl</a> documentation: <a href="https://juliaintervals.github.io/IntervalArithmetic.jl/stable/" class="uri">https://juliaintervals.github.io/IntervalArithmetic.jl/stable/</a></p>
+<p><strong>intervals</strong> <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl" class="uri">https://github.com/JuliaIntervals/IntervalArithmetic.jl</a><br />
+documentation: <a href="https://juliaintervals.github.io/IntervalArithmetic.jl/stable/" class="uri">https://juliaintervals.github.io/IntervalArithmetic.jl/stable/</a></p>
 <p>Points:</p>
 <ul>
 <li>Originally I considered implementing modal intervals (using the quantified modal interval interpretation <span class="math inline">\(([a, b], Q) \in \mathbb{IR} \times \{ \forall, \exists \}\)</span>) on top of IntervalArithmetic library. However IntervalArithmetic only admits outer approximations for intervals. Outer approximations are are done automatically within each interval operation.</li>
@@ -1705,7 +1707,8 @@ export LD_LIBRARY_PATH</code></pre>
 <li>Create a completely new IntervalArithmetic library. In this case we may only need to implement modal interval multiplication and addition (matrix vector multiplication can invoke interval multiplication).</li>
 </ul></li>
 </ul>
-<p><strong>affine</strong> <a href="https://github.com/JuliaIntervals/AffineArithmetic.jl" class="uri">https://github.com/JuliaIntervals/AffineArithmetic.jl</a> documentation: none</p>
+<p><strong>affine</strong> <a href="https://github.com/JuliaIntervals/AffineArithmetic.jl" class="uri">https://github.com/JuliaIntervals/AffineArithmetic.jl</a><br />
+documentation: none</p>
 <p>Points:</p>
 <ul>
 <li>This library is currently a thin implementation (only implemented +, -, *, /, ==, zero, one, range) so I am implementing an affine arithmetic library from scratch. This library is being actively developed. Around mid-July, the went from one to four files.</li>
@@ -1716,10 +1719,11 @@ export LD_LIBRARY_PATH</code></pre>
 documentation: <a href="http://www.juliadiff.org/TaylorSeries.jl/stable/" class="uri">http://www.juliadiff.org/TaylorSeries.jl/stable/</a></p>
 <p>Points:</p>
 <ul>
-<li>Interestingly, TaylorSeries does not provide a method that takes a function as input to evaluate a taylor approximation. Instead it provides types Taylor1 and TaylorN that once passed as variables to a function generates a taylor approximation as output. This infers that we can obtain a taylor approximation of a derivative of <span class="math inline">\(f\)</span> when passing <span class="math inline">\(f\)</span> and an instance of Taylor1 to <span class="math inline">\(ForwardDiff.derivative()\)</span>.</li>
+<li>Interestingly, TaylorSeries does not provide a method that takes a function as input to evaluate a taylor approximation. Instead it provides types Taylor1 and TaylorN that once passed as variables to a function generates a taylor approximation as output. This infers that we can obtain a taylor approximation of a derivative of <span class="math inline">\(f\)</span> when passing <span class="math inline">\(f\)</span> and an instance of Taylor1 to <code>ForwardDiff.derivative()</code>.</li>
 <li>TaylorSeries supports arbitrary types as coefficients (limitations?).</li>
 </ul>
-<p><strong>taylor models</strong> <a href="https://github.com/JuliaIntervals/TaylorModels.jl" class="uri">https://github.com/JuliaIntervals/TaylorModels.jl</a> documentation: <a href="https://juliaintervals.github.io/TaylorModels.jl/stable/" class="uri">https://juliaintervals.github.io/TaylorModels.jl/stable/</a></p>
+<p><strong>taylor models</strong> <a href="https://github.com/JuliaIntervals/TaylorModels.jl" class="uri">https://github.com/JuliaIntervals/TaylorModels.jl</a><br />
+documentation: <a href="https://juliaintervals.github.io/TaylorModels.jl/stable/" class="uri">https://juliaintervals.github.io/TaylorModels.jl/stable/</a></p>
 <p>Points:</p>
 <ul>
 <li>Is built on top of the TaylorSeries module to provide rigorous bounds for the enclosure representing the error term of a taylor approximation.</li>
@@ -1740,7 +1744,8 @@ System package manager: pacman<br />
 Distribution Environment: Anaconda 3<br />
 Python: &gt;3.5<br />
 Python package manager: conda, pip<br />
-Julia version: 1.x</p>
+Julia version: &gt;1.x<br />
+Qt version (for plots): 5</p>
 </div>
 <div id="modal-interval-arithmetic" class="section level3">
 <h3>Modal interval arithmetic</h3>

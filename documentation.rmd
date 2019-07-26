@@ -202,7 +202,7 @@ The abstract type Real is a supertype of floats, integers and unsigned integers 
 `rounding`, `setrounding`  
 `isapprox`  
 
-**automatic forward differentiation** <https://github.com/JuliaDiff/ForwardDiff.jl>
+**automatic forward differentiation** <https://github.com/JuliaDiff/ForwardDiff.jl>  
 documentation: <http://www.juliadiff.org/ForwardDiff.jl/stable/>  
 
 Points:
@@ -213,7 +213,7 @@ Points:
 - RINO obtains taylor series from derivatives (and gradients, jacobians). As of now there is no clear way to do this in Julia.
     + It seems possible to change the source code of ForwardDiff to allow for arbitrary inputs.
 
-**intervals** <https://github.com/JuliaIntervals/IntervalArithmetic.jl>
+**intervals** <https://github.com/JuliaIntervals/IntervalArithmetic.jl>  
 documentation: <https://juliaintervals.github.io/IntervalArithmetic.jl/stable/>  
 
 Points:
@@ -223,7 +223,7 @@ Points:
     + Modify IntervalArithmetic directly so that it admits and inner approximations of intervals. It may be possible to utilize exists macros that set approximations in package.
     + Create a completely new IntervalArithmetic library. In this case we may only need to implement modal interval multiplication and addition (matrix vector multiplication can invoke interval multiplication).
 
-**affine** <https://github.com/JuliaIntervals/AffineArithmetic.jl>
+**affine** <https://github.com/JuliaIntervals/AffineArithmetic.jl>  
 documentation: none  
 
 Points:
@@ -237,10 +237,10 @@ documentation: <http://www.juliadiff.org/TaylorSeries.jl/stable/>
 
 Points:
 
-- Interestingly, TaylorSeries does not provide a method that takes a function as input to evaluate a taylor approximation. Instead it provides types Taylor1 and TaylorN that once passed as variables to a function generates a taylor approximation as output. This infers that we can obtain a taylor approximation of a derivative of $f$ when passing $f$ and an instance of Taylor1 to $ForwardDiff.derivative()$.
+- Interestingly, TaylorSeries does not provide a method that takes a function as input to evaluate a taylor approximation. Instead it provides types Taylor1 and TaylorN that once passed as variables to a function generates a taylor approximation as output. This infers that we can obtain a taylor approximation of a derivative of $f$ when passing $f$ and an instance of Taylor1 to `ForwardDiff.derivative()`.
 - TaylorSeries supports arbitrary types as coefficients (limitations?).
 
-**taylor models** <https://github.com/JuliaIntervals/TaylorModels.jl>
+**taylor models** <https://github.com/JuliaIntervals/TaylorModels.jl>  
 documentation: <https://juliaintervals.github.io/TaylorModels.jl/stable/>  
 
 Points:
@@ -264,8 +264,8 @@ System package manager: pacman
 Distribution Environment: Anaconda 3  
 Python: >3.5  
 Python package manager: conda, pip  
-Julia version: 1.x  
-
+Julia version: >1.x  
+Qt version (for plots): 5  
 
 
 ### Modal interval arithmetic
