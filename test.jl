@@ -58,30 +58,69 @@ end
 
  #=
  # ForwardDiff testing
- # Is mainly used to test modifications to ForwardDiff 
+ # Is used to test modifications to ForwardDiff 
 =#
 
 @testset "ForwardDiff" begin
-    @testset "simple functions" begin
+    a = rand(Float64) + rand(0:99)
+    a2 = [rand(Float64) + rand(0:99), rand(Float64) + rand(0:99)]
+    tm = Taylor1(Float64, 5)
+
+    @testset "simple derivatives" begin
         f(x) = 2*x; df(x) = 2
-        @test ForwardDiff.derivative(f, 1) == df(1)
+        @test ForwardDiff.derivative(f, a) == df(a)
         f(x) = x + 2; df(x) = 1
-        @test ForwardDiff.derivative(f, 2) == df(2)
+        @test ForwardDiff.derivative(f, a) == df(a)
         f(x) = x^2; df(x) = 2*x
-        @test ForwardDiff.derivative(f, 2) == df(2)
+        @test ForwardDiff.derivative(f, a) == df(a)
         f1(x) = 1/x; f2(x) = x^(-1); f3(x) = inv(x); df(x) = -x^(-2)
-        @test ForwardDiff.derivative(f1, 2) == ForwardDiff.derivative(f2, 2) == ForwardDiff.derivative(f3, 2) == df(2)
+        @test ForwardDiff.derivative(f1, a) == ForwardDiff.derivative(f2, a) == ForwardDiff.derivative(f3, a) == df(a)
         f(x) = x^3; df(x) = 3*x^2
-        @test ForwardDiff.derivative(f, 2) == df(2)
+        @test ForwardDiff.derivative(f, a) == df(a)
     end
 
-    @testset "taylor series" begin
-        tm = Taylor1(Float64, 5)
-        f(x::Number) = sin(x)
-        # 1.0 t - 0.16666666666666666 t³ + 0.008333333333333333 t⁵ + 𝒪(t⁶)
-        df(x::Number) = cos(x)
-        # 1.0 - 0.5 t² + 0.041666666666666664 t⁴ + 𝒪(t⁶)
-        @test cos(tm) == ForwardDiff.derivative(f, tm)
+    @testset "simple gradients" begin
+        f(x::Vector) = (x[1]^2)*x[2]
+        gf(x::Vector) = [2*x[1]*x[2], x[1]^2]
+        @test gf(a2) == ForwardDiff.gradient(f, a2)
+    end
+
+    @testset "simple jacobians" begin
+        f(x::Vector) = [x[1]*(x[2]^2), (x[1]^2)*x[2]]
+        Jf(x::Vector) = [x[2]^2 2*x[1]*x[2]; 2*x[1]*x[2] x[1]^2]
+        @test Jf(a2)  == ForwardDiff.jacobian(f, a2)
+    end
+
+    @testset "simple hessians" begin
+        f(x::Vector) = (x[1]^2)*(x[2]^2)
+        Hf(x::Vector) = [2*x[2]^2 4*x[1]*x[2]; 4*x[1]*x[2] 2*x[1]^2]
+        @test Hf(a2) == ForwardDiff.hessian(f, a2)
+        f(x::Vector) = x[1]*x[2]^2 - x[2]*x[1]^2
+        Hf(x::Vector) = [-2*x[2] (2*x[2] - 2*x[1]); (2*x[2] - 2*x[1]) 2*x[1]]
+        @test Hf(a2) == ForwardDiff.hessian(f, a2)
+    end
+
+    @testset "ForwardDiff + Taylor1: simple derivatives" begin
+        rr = rand(Float64) + rand(0:99)
+        for n in -10:10
+            fn(x::Number) = rr*(x + 1)^n; dfn(x::Number) = rr*n*(x + 1)^(n - 1)
+            @test isapprox(dfn(tm), ForwardDiff.derivative(fn, tm); rtol=1E-8)
+        end
+    end
+
+
+    #=
+123.39811812473778 + 616.9905906236888 t + 1233.9811812473777 t² + 1233.9811812473777 t³ + 616.9905906236888 t⁴ + 123.39811812473778 t⁵ + 𝒪(t⁶)
+123.39811812473778 + 616.990590623689 t + 1233.981181247378 t² + 1233.981181247378 t³ + 616.990590623689 t⁴ + 123.39811812473778 t⁵ + 𝒪(t⁶)
+=#
+
+    @testset "ForwardDiff + Taylor1: common Maclaurin series" begin
+        f(x::Number) = sin(x); df(x::Number) = cos(x)
+        @test df(tm) == ForwardDiff.derivative(f, tm)
+        f(x::Number) = -log(1 - x); df(x::Number) = 1/(1 - x)
+        @test df(tm) == ForwardDiff.derivative(f, tm)
+        f(x::Number) = (1 + x)*log(1 + x) - x; df(x::Number) = log(1 + x)
+        @test df(tm) == ForwardDiff.derivative(f, tm)
     end
 end
 
@@ -141,7 +180,7 @@ function sameForm(a::Affine, p::Affine; tol::Float64=affineTOL)
 end
 
 sameForm(x::Vector{Affine}, y::Vector{Affine}; tol::Float64=affineTOL) = sameForm.(x, y, tol=tol) |> x -> reduce((b1, b2) -> b1 && b2, x)
-sameForm(x::Matrix{Affine}, y::Matrix{Affine}; tol::Float64=affineTOL) = sameForm.(x, y, tol=tol) |> x -> reduce((b1, b2) -> b1 && b2, x, dims=1) |> x -> reduce((b1, b2) -> b1 && b2, x)
+sameForm(X::Matrix{Affine}, Y::Matrix{Affine}; tol::Float64=affineTOL) = sameForm.(X, Y, tol=tol) |> x -> reduce(&, x, dims=1) |> x -> reduce(&, x)
 
  #=
  # Affine Arithmetic Common
@@ -552,62 +591,52 @@ end
                [1, 4, 6],
                [2, 3, 5, 6],
                [1]]
-    a1 = Affine(32.1, [0.1, -0.2, 1.5, -2.0], [1, 3, 4, 5])
-    a2 = Affine(27.3, [10.0, 0.5, 1.0], [1, 4, 6])
-    a3 = Affine(4.0,  [-3.33, 9.0, -1.5, 5.25], [2, 3, 5, 6])
+    a1     = Affine(centers[1], devs[1], inds[1])
+    a2     = Affine(centers[2], devs[2], inds[2])
+    a3     = Affine(centers[3], devs[3], inds[3])
+    va     = [a1, a2, a3]
     
     @testset "derivative simple" begin
         f(x::Number)  = 1.0 - x^2 + x
         df(x::Number) = -2*x + 1.0
-        @test ForwardDiff.derivative(f,a1) == df(a1)
+        for a in va
+            @test sameForm(df(a), ForwardDiff.derivative(f, a))
+        end
     end
 
     @testset "derivative of 1/x" begin
         f(x::Number)  = 1/x
         df(x::Number) = -(1 /x /x)
-        resetLastAffineIndex()
-        a1     = Affine(centers[1], devs[1], inds[1])
-        actual = df(a1)
-        resetLastAffineIndex()
-        a1     = Affine(centers[1], devs[1], inds[1])
-        res    = ForwardDiff.derivative(f, a1)
-        @test res == actual
-        resetLastAffineIndex()
-        a2     = Affine(centers[2], devs[2], inds[2])
-        actual = df(a2)
-        resetLastAffineIndex()
-        a2     = Affine(centers[2], devs[2], inds[2])
-        res    = ForwardDiff.derivative(f, a2)
-        @test res == actual
-        resetLastAffineIndex()
-        a3     = Affine(centers[3], devs[3], inds[3])
-        actual = df(a3)
-        resetLastAffineIndex()
-        a3     = Affine(centers[3], devs[3], inds[3])
-        res    = ForwardDiff.derivative(f, a3)
-        @test res == actual
+        for a in va
+            @test sameForm(df(a), ForwardDiff.derivative(f, a))
+        end
     end
 
     @testset "derivative of const / x" begin
-        f(x::Number) = 2.35/x
-        df(x::Number) = -(2.35 /x /x)
-        a1         = Affine(centers[1], devs[1], inds[1])
-        @test sameForm(df(a1), ForwardDiff.derivative(f, a1))
+        rr = rand(Float64) + rand(0:99)
+        f(x::Number) = rr/x
+        df(x::Number) = -(rr /x /x)
+        for a in va
+            @test sameForm(df(a), ForwardDiff.derivative(f, a))
+        end
     end
 
      #=
      # Remark: `df(x::Number) = 1` also works when using `==`
-     # TODO: add more cases
     =#
     @testset "derivative of x^n" begin
-        f(x::Number)  = x
-        df(x::Number) = Affine(1)
-        a1          = Affine(centers[1], devs[1], inds[1])
-        @test sameForm(df(a1), ForwardDiff.derivative(f, a1))
-        for n in 1:5
-            fn(x::Number)  = x^n
-            dfn(x::Number) = n * (x^(n-1))
-            @test sameForm(dfn(a1), ForwardDiff.derivative(fn, a1))
+        rr = rand(Float64) + rand(0:99)
+        f(x::Number)  = rr*x
+        df(x::Number) = Affine(rr)
+        for a in va
+            @test sameForm(df(a), ForwardDiff.derivative(f, a))
+        end
+        for n in 1:10
+            fn(x::Number)  = rr * x^n
+            dfn(x::Number) = rr* n * (x^(n-1))
+            for a in va
+                @test sameForm(dfn(a), ForwardDiff.derivative(fn, a))
+            end
         end
     end
 
@@ -616,14 +645,16 @@ end
      # Remark: `df(x::Number) = 0` also works when using `==`
     =#
     @testset "derivative of constants" begin
-        f(x::Number)  = Affine(2.0)
+        rr = rand(Float64) + rand(0:99)
+        f(x::Number)  = Affine(rr)
         df(x::Number) = Affine(0)
-        a1          = Affine(centers[1], devs[1], inds[1])
-        @test sameForm(df(a1), ForwardDiff.derivative(f, a1))
+        for a in va
+            @test sameForm(df(a), ForwardDiff.derivative(f, a))
+        end
     end
 
      #=
-     # FAIL
+     # FAIL: the affine outputs don't exactly match.
     =#
     #=
     @testset "derivative of x^-2" begin
@@ -647,21 +678,15 @@ end
     @testset "gradient" begin
         f(x::Vector)  = x[1]*x[3] + 2.0*x[2]*x[1] - x[3]*x[2]
         gf(x::Vector) = [x[3] + 2.0*x[2], 2.0*x[1] - x[3], x[1] - x[2]]
-        a1           = Affine(centers[1], devs[1], inds[1])
-        a2           = Affine(centers[2], devs[2], inds[2])
-        a3           = Affine(centers[3], devs[3], inds[3])
         ax = [a1, a2, a3]
-        #disp(gf(ax))
-        #disp(ForwardDiff.gradient(f, ax))
         @test sameForm(gf(ax), compact(ForwardDiff.gradient(f, ax)))
     end
 
     @testset "hessian" begin
-        f(x::Vector) = x[1]*x[2]^2 - x[2]*x[1]^2
-        Hf(x::Vector) = [-2*x[2] (2*x[2] - 2*x[1]); (2*x[2] - 2*x[1]) 2*x[1]]
+        f(x::Vector) = (x[1]^2)*(x[2]^2)
+        Hf(x::Vector) = [2*x[2]^2 4*x[1]*x[2]; 4*x[1]*x[2] 2*x[1]^2]
         ax = [a1, a2]
-        res = ForwardDiff.hessian(f, ax)
-        @test compact(res) == Hf(ax)
+        @test sameForm(Hf(ax), compact(ForwardDiff.hessian(f, ax)))
     end
 
 #=

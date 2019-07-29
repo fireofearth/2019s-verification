@@ -129,7 +129,6 @@ end
  # - Affine indexes are always in sorted order from lowest to highest
  # - elts in Affine indexes are unique
  #
- # TODO: it's not clear whether `length` and `size` are redundant; refactor to get rid of length and size, can query vector length
  # TODO: enable iterator, indexing
  # TODO: make `Affine <: Real` into `Affine{T<:Real} <: Number`
 =#
