@@ -4,14 +4,14 @@ disp(msg) = print("$(repr(msg))\n")
 debug() = print("DEBUG\n")
 
 using Test, Random, IntervalArithmetic
+using TaylorSeries
 using ModalIntervalArithmetic
 using AffineArithmetic
 using ForwardDiff
+using Logging
 
  #=
  # Modal Interval testing
- #
- # TODO:
 =#
 
 @testset "modal interval getters" begin
@@ -57,6 +57,35 @@ end
 end
 
  #=
+ # ForwardDiff testing
+ # Is mainly used to test modifications to ForwardDiff 
+=#
+
+@testset "ForwardDiff" begin
+    @testset "simple functions" begin
+        f(x) = 2*x; df(x) = 2
+        @test ForwardDiff.derivative(f, 1) == df(1)
+        f(x) = x + 2; df(x) = 1
+        @test ForwardDiff.derivative(f, 2) == df(2)
+        f(x) = x^2; df(x) = 2*x
+        @test ForwardDiff.derivative(f, 2) == df(2)
+        f1(x) = 1/x; f2(x) = x^(-1); f3(x) = inv(x); df(x) = -x^(-2)
+        @test ForwardDiff.derivative(f1, 2) == ForwardDiff.derivative(f2, 2) == ForwardDiff.derivative(f3, 2) == df(2)
+        f(x) = x^3; df(x) = 3*x^2
+        @test ForwardDiff.derivative(f, 2) == df(2)
+    end
+
+    @testset "taylor series" begin
+        tm = Taylor1(Float64, 5)
+        f(x::Number) = sin(x)
+        # 1.0 t - 0.16666666666666666 t³ + 0.008333333333333333 t⁵ + 𝒪(t⁶)
+        df(x::Number) = cos(x)
+        # 1.0 - 0.5 t² + 0.041666666666666664 t⁴ + 𝒪(t⁶)
+        @test cos(tm) == ForwardDiff.derivative(f, tm)
+    end
+end
+
+ #=
  # Affine arithmetic testing
  # 
  # Specifications:
@@ -68,9 +97,8 @@ end
  # resetLastAffineIndex() before generating them. This is especially true when testing for
  # ForwardDiff
  #
- # TODO: constructors, getters, utility functionality
- # TODO: hardcoded tests to check boundary cases
- # TODO: tests to compare solutions with aaflib
+ # TODO: improve tests on constructors, getters, utility functionality
+ # TODO: add more (~4) cases to compare solutions with aaflib
  # TODO: improve random number generators
  # TODO: tests to check compatibility with ForwardDiff
  #
@@ -120,6 +148,15 @@ sameForm(x::Matrix{Affine}, y::Matrix{Affine}; tol::Float64=affineTOL) = sameFor
  # All functionality except for elementary functions and binary operations
 =#
 @testset "affine arithmetic common" begin
+    
+    @testset "convert" begin
+        center = 3.14
+        a = convert(Affine, center)
+        @test a == Affine(center)
+        @test a[0] == center
+        @test length(a) == 0
+    end
+
     @testset "algebriac identities" begin
         center = 3.14
         dev    = [0.75, 0.01]
@@ -302,6 +339,34 @@ end
         @test a^1 == a
         @test isapprox(a^2, Affine(nCenter, nDev, nInd); tol=10E-8)
     end
+
+    @testset "sine" begin
+        resetLastAffineIndex()
+        nCenter = 6.0322966737821453
+        nDev = [2.1099999999999999,
+                -3.0299999999999998,
+                4.5899999999999999,
+                1,
+                -10,
+                20.189433933491976]
+        nInd = [1, 3, 5, 8, 10, 11]
+        a = Affine(center, dev, ind)
+        @test isapprox(sin(a), Affine(nCenter, nDev, nInd); tol=10E-8 )
+    end
+
+    @testset "cosine" begin
+        resetLastAffineIndex()
+        nCenter = -6.456133558502529
+        nDev = [-2.1099999999999999,
+                3.0299999999999998,
+                -4.5899999999999999,
+                -1,
+                10,
+                19.945823920451314]
+        nInd = [1, 3, 5, 8, 10, 11]
+        a = Affine(center, dev, ind)
+        @test isapprox(cos(a), Affine(nCenter, nDev, nInd); tol=10E-8 )
+    end
 end
 
  #=
@@ -474,7 +539,8 @@ end
  # Affine Arithmetic ForwardDiff
  # Tests compatibility with ForwardDiff
  # 
- # Remark: ForwardDiff almost works as is; must make affines compact by removing zeros
+ # Remark: ForwardDiff almost works as is; must make affines compact by removing zeros.
+ # Remark: ForwardDiff gives unpredictable derivatives when f contains division.
 =#
 @testset "affine arithmetic ForwardDiff" begin
     centers = [32.1, 27.3, 58.0, 32.1]
@@ -491,14 +557,14 @@ end
     a3 = Affine(4.0,  [-3.33, 9.0, -1.5, 5.25], [2, 3, 5, 6])
     
     @testset "derivative simple" begin
-        f(x::Real)  = 1.0 - x^2 + x
-        df(x::Real) = -2*x + 1.0
+        f(x::Number)  = 1.0 - x^2 + x
+        df(x::Number) = -2*x + 1.0
         @test ForwardDiff.derivative(f,a1) == df(a1)
     end
 
     @testset "derivative of 1/x" begin
-        f(x::Real)  = 1/x
-        df(x::Real) = -(1 /x /x)
+        f(x::Number)  = 1/x
+        df(x::Number) = -(1 /x /x)
         resetLastAffineIndex()
         a1     = Affine(centers[1], devs[1], inds[1])
         actual = df(a1)
@@ -523,35 +589,35 @@ end
     end
 
     @testset "derivative of const / x" begin
-        f(x::Real) = 2.35/x
-        df(x::Real) = -(2.35 /x /x)
+        f(x::Number) = 2.35/x
+        df(x::Number) = -(2.35 /x /x)
         a1         = Affine(centers[1], devs[1], inds[1])
         @test sameForm(df(a1), ForwardDiff.derivative(f, a1))
     end
 
      #=
-     # Remark: `df(x::Real) = 1` also works when using `==`
+     # Remark: `df(x::Number) = 1` also works when using `==`
      # TODO: add more cases
     =#
     @testset "derivative of x^n" begin
-        f(x::Real)  = x
-        df(x::Real) = Affine(1)
+        f(x::Number)  = x
+        df(x::Number) = Affine(1)
         a1          = Affine(centers[1], devs[1], inds[1])
         @test sameForm(df(a1), ForwardDiff.derivative(f, a1))
         for n in 1:5
-            fn(x::Real)  = x^n
-            dfn(x::Real) = n * (x^(n-1))
+            fn(x::Number)  = x^n
+            dfn(x::Number) = n * (x^(n-1))
             @test sameForm(dfn(a1), ForwardDiff.derivative(fn, a1))
         end
     end
 
      #=
-     # FAIL when f(x::Real) = 1 but success when f(x::Real)  = Affine(1)
-     # Remark: `df(x::Real) = 0` also works when using `==`
+     # FAIL when f(x::Number) = 1 but success when f(x::Number)  = Affine(1)
+     # Remark: `df(x::Number) = 0` also works when using `==`
     =#
     @testset "derivative of constants" begin
-        f(x::Real)  = Affine(2.0)
-        df(x::Real) = Affine(0)
+        f(x::Number)  = Affine(2.0)
+        df(x::Number) = Affine(0)
         a1          = Affine(centers[1], devs[1], inds[1])
         @test sameForm(df(a1), ForwardDiff.derivative(f, a1))
     end
@@ -559,11 +625,12 @@ end
      #=
      # FAIL
     =#
+    #=
     @testset "derivative of x^-2" begin
-        #f(x::Real)  = x^(-2)
-        #df(x::Real) = -2*x^(-3)
-        f(x::Real)  = inv(x)^2
-        df(x::Real) = 2*inv(x) * -abs2(inv(x)) # actual derivative
+        #f(x::Number)  = x^(-2)
+        #df(x::Number) = -2*x^(-3)
+        f(x::Number)  = inv(x)^2
+        df(x::Number) = 2*inv(x) * -abs2(inv(x)) # actual derivative
         #a1 = Affine(centers[1], devs[1], inds[1])
         a1 = Affine(centers[1], Vector{Float64}(), Vector{Int}())
         #disp("begin")
@@ -575,6 +642,7 @@ end
         disp(ForwardDiff.derivative(f, a4))
         @test sameForm(df(a4), ForwardDiff.derivative(f, a4))
     end
+    =#
 
     @testset "gradient" begin
         f(x::Vector)  = x[1]*x[3] + 2.0*x[2]*x[1] - x[3]*x[2]

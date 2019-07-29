@@ -181,6 +181,8 @@ export LD_LIBRARY_PATH
 
 ## Julia RINO implementation
 
+[Documentation](https://docs.julialang.org/en/v1/)
+
 ### Components
 
 Required functionality:
@@ -192,7 +194,7 @@ Required functionality:
 
 A critique of existing Julia components:
 
-**real numbers** (Base package)
+**Real** (Base package) <https://github.com/JuliaLang/julia/blob/master/base/Base.jl>  
 
 The abstract type Real is a supertype of floats, integers and unsigned integers and Real has accommodating Base methods:
 
@@ -201,6 +203,25 @@ The abstract type Real is a supertype of floats, integers and unsigned integers 
 `convert`  
 `rounding`, `setrounding`  
 `isapprox`  
+
+**Number** (Base package) <https://github.com/JuliaLang/julia/blob/master/base/number.jl>
+
+- Complex <https://github.com/JuliaLang/julia/blob/master/base/complex.jl>
+- math <https://github.com/JuliaLang/julia/blob/master/base/math.jl>
+- utilities <https://github.com/JuliaLang/julia/blob/master/base/number.jl>
+- type promotion <https://github.com/JuliaLang/julia/blob/master/base/promotion.jl>
+
+Any subtype of Number must support 
+
+sign()
+convert(::Type{T}, x::T)
+convert(::Type{T}, x::Number)
+
+**Outstanding**: 
+
+- Complete list of methods using Real, Number
+- Where is Real, Number declared in Base package?
+- What are the differences between Real, Number: if a function has arguments in Real type, then can that same function evaluate with arguments in Number type?
 
 **automatic forward differentiation** <https://github.com/JuliaDiff/ForwardDiff.jl>  
 documentation: <http://www.juliadiff.org/ForwardDiff.jl/stable/>  
@@ -239,6 +260,7 @@ Points:
 
 - Interestingly, TaylorSeries does not provide a method that takes a function as input to evaluate a taylor approximation. Instead it provides types Taylor1 and TaylorN that once passed as variables to a function generates a taylor approximation as output. This infers that we can obtain a taylor approximation of a derivative of $f$ when passing $f$ and an instance of Taylor1 to `ForwardDiff.derivative()`.
 - TaylorSeries supports arbitrary types as coefficients (limitations?).
+- Taylor1, TaylorN are subtypes of Number, and are iterable <https://github.com/JuliaDiff/TaylorSeries.jl/blob/master/src/auxiliary.jl>
 
 **taylor models** <https://github.com/JuliaIntervals/TaylorModels.jl>  
 documentation: <https://juliaintervals.github.io/TaylorModels.jl/stable/>  
@@ -290,6 +312,17 @@ Interval, inf, sup,
 rad, getMax, getMin, getAbsMax, getAbsMin,
 compact
 
+Affine forms must evaluate under the following functions:
+
+`Base.convert` -  
+`Base.one` - return a multiplicative identity for x: a value such that one(x)\*x == x\*one(x) == x. Alternatively one(T) can take a type T, in which case one returns a multiplicative identity for any x of type T.  
+`Base.isone` - return true if x == one(x) if x is an array, this checks whether x is an identity matrix.  
+`Base.zero` -  
+`Base.iszero`  
+`Base.promotion_rule` -  
+`Base.isapprox` -  
+`Base.rtoldefault` - returns the default relative tolerance value base on number type.  
+
 ### Automatic differentiation
 
 [Cassette](https://jrevels.github.io/Cassette.jl/latest/whycassette.html) was originally designed for better language support for automatic differentiation.
@@ -299,16 +332,10 @@ Both [AutoDiffSource](https://github.com/gaika/AutoDiffSource.jl) and ReverseDif
 
 By the process of elimination [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl) is the one I will be using.
 
-In addition Affine must support the following:
+We wish to do the following using forward differentiation:
 
-`Base.convert` -  
-`Base.one` - return a multiplicative identity for x: a value such that one(x)\*x == x\*one(x) == x. Alternatively one(T) can take a type T, in which case one returns a multiplicative identity for any x of type T.  
-`Base.isone` - return true if x == one(x) if x is an array, this checks whether x is an identity matrix.  
-`Base.zero` -  
-`Base.iszero`  
-`Base.promotion_rule` -  
-
-**Things to try**:
+- generate taylor approximations of derivatives.
+- compute affine forms under derivatives of functions.
 
 **Outstanding**: ForwardDiff does not give good expressions for derivatives when the original expression contains inverse (i.e. `1.0 /x`, `inv(x)`, or `x^(-1)`). For example:
 

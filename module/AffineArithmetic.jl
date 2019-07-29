@@ -131,8 +131,9 @@ end
  #
  # TODO: it's not clear whether `length` and `size` are redundant; refactor to get rid of length and size, can query vector length
  # TODO: enable iterator, indexing
+ # TODO: make `Affine <: Real` into `Affine{T<:Real} <: Number`
 =#
-struct Affine <: Real
+struct Affine <: Number
     cvalue::AffineCoeff  # central value 
     #length::Int # length of indexes 
     #size::Int   # array size of indexes and deviations
@@ -230,6 +231,10 @@ function reprit(center, deviation, indexes)
     return s
 end
 
+ #=
+ # convert, one, zero, isone, iszero
+ # is already supported by Base module, provided Affine <: Real or Affine <: Number
+=#
 convert(::Type{Affine}, x::Affine) = Affine(x)
 convert(::Type{Affine}, x::AffineCoeff) = Affine(x)
 convert(::Type{Affine}, x::AffineInt)   = Affine(x)
@@ -241,6 +246,10 @@ zero(x::Affine)      = convert(Affine, 0.)
 
 isone(x::Affine)     = x == one(Affine)
 iszero(x::Affine)    = x == zero(Affine)
+
+isnan(x::Affine) = any(isnan.(x.deviations))
+isinf(x::Affine) = any(isinf.(x.deviations))
+isfinite(x::Affine) = !isnan(x) && !isinf(x)
 
 promote_rule(::Type{Affine},      ::Type{Affine})      = Affine
 promote_rule(::Type{Affine},      ::Type{AffineCoeff}) = Affine
@@ -269,7 +278,7 @@ lastindex(a::Affine)  = length(a) > 0 ? last(a.indexes) : 0
 
  #=
  # Unknown methods
- # Specification: compact, sumup
+ # Specification: sumup
  # TODO: implement
 =#
 
@@ -328,6 +337,11 @@ end
 
 ==(a::Affine, p::Affine) = equalityInterval(a, p)
 
+ #=
+ # true iff two affine forms are approximate
+ #
+ # TODO: may this function properly extend Base.isapprox
+=#
 function isapprox(a::Affine, p::Affine; tol::Float64=TOL)
     return equalityInterval(a, p; tol=tol)
 end
@@ -346,9 +360,9 @@ end
 *(cst::AffineCoeff, a::Affine)::Affine = Affine(a, cst * a[0], cst * a.deviations)
 
 *(a::Affine, cst::AffineInt)::Affine = Affine(a, convert(AffineCoeff, a[0] * cst), 
-                                              convert(Vector{AffineCoeff}, cst * a.deviations))
+    convert(Vector{AffineCoeff}, cst * a.deviations))
 *(cst::AffineInt, a::Affine)::Affine = Affine(a, convert(AffineCoeff, cst * a[0]), 
-                                              convert(Vector{AffineCoeff}, cst * a.deviations))
+    convert(Vector{AffineCoeff}, cst * a.deviations))
 
  #=
  # a + p, where a, p are Affine
@@ -631,12 +645,12 @@ function sin(p::Affine)::Affine
     sina = sin(a)
     sinb = sin(b)
 
-    if(b > 0 || (b < π && a > 0))
+    if(b < 0 || (b < π && a > 0))
         # Use Chebyshev approximation
         if(r > 1.0E-6)  
             alpha = (sinb - sina) / (b - a)
             sol   = sign(a)*acos(alpha)
-            # Here f(x) = sin ∘ acos(x) = √(1 - x²)
+            # Here sin ∘ acos(x) = √(1 - x²)
             fsol  = √(1 - alpha^2)
             dzeta = (sina + fsol - alpha*(a + sol)) / 2
             delta = abs(fsol - sina - alpha*(sol - a)) / 2
