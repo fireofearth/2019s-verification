@@ -1,4 +1,6 @@
-include("ODECommon.jl")
+
+using ForwardDiff
+using AffineArithmetic
 
  #=
  # params:
@@ -34,18 +36,75 @@ struct IOR
 end
 
  #=
+ # Construct Taylor Model
  #
- #
- # TODO: finish function
+ # Specification:
+ # - Constructs the function
+ # [z](t, tⱼ, [zⱼ]) = [zⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
+ # Used by the HSCC'17 article by Goubault+Putot and returns it
+ # - Assumes that f: Rᴺ → Rᴺ
+ # - We do the calculation with affine forms, this implies [zₒ] ≡ Affine(center([zₒ])), etc...
 =#
-function initSubdiv(odev::ODEInitVar, ior::IOR)
+function constructTM(f::Function; order:Int=5)
+
+    # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
+    vf = [f]
+    for i in 2:order
+        fi = (z::Affine -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        vf = vcat(vf, fi)
+    end
+
+    # cTM(t,tⱼ,[zⱼ],[rⱼ₊₁]) = [zⱼ] = ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
+    function cTM(t::Real, tj::Real, zj::Vector{Affine}, r::Vector{Affine})
+        acc = zj
+        for i in 1:(order - 1)
+            acc += ((t - tj)^i / i) * vf[i](zj)
+        end
+        acc += ((t - tj)^i / i) * vf[order](r)
+        return acc
+    end
+
+    return cTM
 end
 
-struct HybridStepODE
-    # ODEFunc is declared here in RINO
-    
-    function HybridStepODE()
+ #=
+ # Construct Taylor Model of the Jacobian
+ #
+ # Specification:
+ # - Constructs the function
+ # [J](t, tⱼ, [zⱼ]) = [Jⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
+ # used by the HSCC'17 article by Goubault+Putot and returns it
+ # - Assumes that f: Rᴺ → Rᴺ
+ # - We do the calculation with affine forms, this implies [zₒ] ≡ Affine(center([zₒ])), etc...
+=#
+function constructJacTM(f::Function; order:Int=5)
+
+    # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
+    vf = [f]
+    for i in 2:order
+        fi = (z::Affine -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        vf = vcat(vf, fi)
     end
+
+    # store the jacobians of the lie derivatives Jac(f⁽ⁱ⁾) in vJacf
+    vJacf = [ ]
+    for i in 1:order
+        Jacfi = (z::Affine -> ForwardDiff.jacobian(vf[i], z))
+        vJacf = vJacf(vJacf, Jacfi)
+    end
+
+    # cJacTM(t,tⱼ,[zⱼ],[Jⱼ],[rⱼ₊₁],[Rⱼ₊₁])
+    # = [Jⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
+    function cJacTM(t::Real, tj::Real, zj::Vector{Affine}, Jj::Matrix{Affine}, r::Vector{Affine}, R::Matrix{Affine})
+        acc = Jj
+        for i in 1:(order - 1)
+            acc += ((t - tj)^i / i) * vJacf[i](zj) * Jj
+        end
+        acc += ((t - tj)^i / i) * vf[order](r) * R
+        return acc
+    end
+
+    return cJacTM
 end
 
  #=

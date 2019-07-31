@@ -1,7 +1,4 @@
 
-include("ModalInterval.jl")
-include("Affine.jl")
-
 @enum Problem NN BRUSSELATOR VANDERPOLL CIRCLE BOX LORENZATTR BALLISTIC LOTKAVOLTERRA FITHUGHNAGUMO
 
  #=
