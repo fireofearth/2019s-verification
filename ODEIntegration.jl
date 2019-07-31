@@ -39,9 +39,9 @@ end
  # Construct Taylor Model
  #
  # Specification:
- # - Constructs the function
+ # - Given f, we construct the function
  # [z](t, tⱼ, [zⱼ]) = [zⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
- # Used by the HSCC'17 article by Goubault+Putot and returns it
+ # used by the HSCC'17 article by Goubault+Putot and returns it
  # - Assumes that f: Rᴺ → Rᴺ
  # - We do the calculation with affine forms, this implies [zₒ] ≡ Affine(center([zₒ])), etc...
 =#
@@ -71,9 +71,9 @@ end
  # Construct Taylor Model of the Jacobian
  #
  # Specification:
- # - Constructs the function
+ # - Given f, we construct the function
  # [J](t, tⱼ, [zⱼ]) = [Jⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
- # used by the HSCC'17 article by Goubault+Putot and returns it
+
  # - Assumes that f: Rᴺ → Rᴺ
  # - We do the calculation with affine forms, this implies [zₒ] ≡ Affine(center([zₒ])), etc...
 =#
@@ -105,6 +105,51 @@ function constructJacTM(f::Function; order:Int=5)
     end
 
     return cJacTM
+end
+
+ #=
+ # Compute a priori enclosure for [rⱼ₊₁]
+ #
+ # Specification:
+ # - Compute a priori enclosure [rⱼ₊₁] of f using the interval extension of the 
+ # Picard-Lindelof operator.
+ # The Picard Lindelof is expressed as F[z(t)] = z₀ + ∫{tⱼ to tⱼ₊₁} f(z(s)) ds 
+ # With the interval extension F[z] = z₀ + (tⱼ₊₁ - tⱼ)[f]([z]) with [f] being the natural
+ # interval extension of f. Both versions of F admits a unique fixed point if f is Lipschitz.
+ #
+ # TODO: apply sumup to affine zi so we don't have too accumulate coefficients
+=#
+function fixedPoint(f::Function, z0::Vector{Affine}, n::Int, τ::Real)
+    iiter = 1
+    zi = z0
+    T = fill(Affine(interval(0, τ)), n)
+    X = fill(Affine(interval(-1,  1)),   n)
+
+    while true
+        Fzi = z0 + (T .* f(zi))
+        i > 1 && Interval(Fzi) ⊆ Interval(zi) && break
+        zi = Fzi
+        
+        # reasoning of these choices?
+        if(iter > 25)
+            β = 1.0
+        elseif(iter > 20)
+            β = 0.1
+        elseif(iter > 15)
+            β = 0.01
+        elseif(iter > 10)
+            β = 0.001
+        elseif(iter > 5)
+            β = 0.0001
+        elseif(iter > 2)
+            β = 0.00001
+        end
+        if(iter > 2) # what is this guard for?
+            zi = zi + β*(X .* zi)
+        iter += 1
+    end
+
+    return zi
 end
 
  #=

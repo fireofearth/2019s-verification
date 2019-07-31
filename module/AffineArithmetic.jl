@@ -24,8 +24,10 @@ import IntervalArithmetic: Interval
 # since we will likely use AffineArithmetic along with IntervalArithmetic, we want to avoid namespace conflicts so we will import inf, sup here
 import IntervalArithmetic: inf, sup
 
+
 import Base:
     zero, one, iszero, isone, convert, isapprox, promote_rule,
+    isnan, isinf, isfinite,
     getindex, length, repr, size, firstindex, lastindex,
     <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos
 
@@ -33,6 +35,7 @@ using Logging
 
 export
     zero, one, iszero, isone, convert, isapprox, promote_rule,
+    isnan, isinf, isfinite,
     getindex, length, repr, size, firstindex, lastindex,
     <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos,
     AffineCoeff, AffineInd, AffineInt, Affine, affineTOL,
@@ -261,16 +264,16 @@ promote_rule(::Type{AffineInt},   ::Type{Affine})      = Affine
 =#
 rad(a::Affine)::AffineCoeff = sum(abs.(a.deviations))
 
-Interval(a::Affine) = Interval(a[0] - rad(a), a[0] + rad(a))
-
   #=
   # Get maximum / minimum of an Affine
  =#
 getCenter(a::Affine) = a[0]
 getMax(a::Affine)::AffineCoeff = a[0] + rad(a)
 getMin(a::Affine)::AffineCoeff = a[0] - rad(a)
-getAbsMax()::AffineCoeff = max(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
-getAbsMin()::AffineCoef  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
+getAbsMax(a::Affine)::AffineCoeff = max(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
+getAbsMin(a::Affine)::AffineCoeff  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
+
+Interval(a::Affine) = Interval(getMin(a), getMax(a))
 
 firstindex(a::Affine) = length(a) > 0 ? a.indexes[1] : 0
 lastindex(a::Affine)  = length(a) > 0 ? last(a.indexes) : 0 
@@ -300,7 +303,7 @@ lastindex(a::Affine)  = length(a) > 0 ? last(a.indexes) : 0
  # Specification: affine equality compares cvalues, and deviations up to
  # some tolerance which defaults to TOL
 =#
-function equalityInterval(a::Affine, p::Affine; tol::Float64=TOL)
+function equalityInternal(a::Affine, p::Affine; tol::Float64=TOL)
     if(length(a) != length(p))
         return false
     end
@@ -334,7 +337,7 @@ function equalityInterval(a::Affine, p::Affine; tol::Float64=TOL)
     return true
 end
 
-==(a::Affine, p::Affine) = equalityInterval(a, p)
+==(a::Affine, p::Affine) = equalityInternal(a, p)
 
  #=
  # true iff two affine forms are approximate
@@ -342,7 +345,7 @@ end
  # TODO: may this function properly extend Base.isapprox
 =#
 function isapprox(a::Affine, p::Affine; tol::Float64=TOL)
-    return equalityInterval(a, p; tol=tol)
+    return equalityInternal(a, p; tol=tol)
 end
 
 +(a::Affine, cst::AffineCoeff)::Affine = Affine(a, a[0] + cst)
