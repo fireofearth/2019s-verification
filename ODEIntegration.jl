@@ -16,7 +16,8 @@ using AffineArithmetic
  # [zₒ] ≡ Affine(center([zₒ])), etc... However we permit evaluating for any type T for zⱼ
  #
  # TODO:
- # - possible overflow when calculating fartorials, orders
+ # - ForwardDiff fails when applying Jacobian >7 times, so we require order ≤ 7
+ # and we may need to use TaylorSeries after all
 =#
 function constructTMAffine(f::Function, order::Int)
     # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
@@ -31,9 +32,17 @@ function constructTMAffine(f::Function, order::Int)
     function cTM(t::Real, tj::Real, zj::Vector{Affine}, r::Vector{Affine})
         acc = zj
         for i in 1:(order - 1)
-            acc += ((t - tj)^i / factorial(i)) * vf[i](zj)
+            term = 1.0
+            for l in 1:i
+                term *= (t - tj) / l
+            end
+            acc += term * vf[i](zj)
         end
-        acc += ((t - tj)^order / factorial(order)) * vf[order](r)
+        term = 1.0
+        for l in 1:order
+            term *= (t - tj) / l
+        end
+        acc += term * vf[order](r)
         return acc
     end
 
@@ -53,9 +62,17 @@ function constructTMReal(f::Function, order::Int)
     function cTM(t::Real, tj::Real, zj::Vector{<:Real}, r::Vector{<:Real})
         acc = zj
         for i in 1:(order - 1)
-            acc += ((t - tj)^i / factorial(i)) * vf[i](zj)
+            term = 1.0
+            for l in 1:i
+                term *= (t - tj) / l
+            end
+            acc += term * vf[i](zj)
         end
-        acc += ((t - tj)^order / factorial(order)) * vf[order](r)
+        term = 1.0
+        for l in 1:order
+            term *= (t - tj) / l
+        end
+        acc += term * vf[order](r)
         return acc
     end
 
@@ -84,6 +101,9 @@ end
  #
  # - We do the calculation with affine forms as initial conditions, this implies 
  # [zₒ] ≡ Affine(center([zₒ])), etc... However we permit evaluating for any type T for zⱼ
+ #
+ # TODO:
+ # - possible overflow when calculating fartorials, orders
 =#
 function constructJacTMAffine(f::Function; order::Int=5)
 
