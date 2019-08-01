@@ -3,68 +3,73 @@ using ForwardDiff
 using AffineArithmetic
 
  #=
- # params:
- # J - Jacobian of ODE function
- # x - vector of affine forms representing ODE parameters
- # t - the current time
- #
- # Specification:
- # - Based on RINO by Goubault/Putot
- # - Use Immutable (functional) types. No global variables or in place object member mutations.
- # - 
- #
- # TODO: finish IOR
- # TODO: check J dimensions (row, col of J(sysdim, vector<AAF>(jacdim))?); RINO uses which onesfor cols, rows?
- # TODO: 
-=#
-struct IOR
-    J::Matrix{<:Union{Missing,AAF}}
-    x::Vector{Union{Missing,AAF}}
-    xCenter::Vector{Union{Missing,AAF}}
-    centerInputs::Vector{Union{Missing,AAF}}
-    eps::Vector{Union{Missing,AAF}}
-    t::AbstractFloat
-    
-    function IOR(sysdim::Unsigned, jacdim::Unsigned)
-        new(Matrix{T}(missing, jacdim, sysdim),
-            Vector{Union{Missing,AAF}}(missing, sysdim),
-            Vector{Union{Missing,AAF}}(missing, sysdim),
-            Vector{Union{Missing,AAF}}(missing, sysdim),
-            Vector{Union{Missing,AAF}}(missing, sysdim),
-            0)
-    end
-end
-
- #=
  # Construct Taylor Model
  #
  # Specification:
- # - Given f, we construct the function
+ # - Given problem ̇z' = f(z), we construct the function
  # [z](t, tⱼ, [zⱼ]) = [zⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
  # used by the HSCC'17 article by Goubault+Putot and returns it
+ #
  # - Assumes that f: Rᴺ → Rᴺ
- # - We do the calculation with affine forms, this implies [zₒ] ≡ Affine(center([zₒ])), etc...
+ #
+ # - We do the calculation with affine forms as initial conditions, this implies 
+ # [zₒ] ≡ Affine(center([zₒ])), etc... However we permit evaluating for any type T for zⱼ
+ #
+ # TODO:
+ # - possible overflow when calculating fartorials, orders
 =#
-function constructTM(f::Function; order:Int=5)
-
+function constructTMAffine(f::Function, order::Int)
     # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
     vf = [f]
     for i in 2:order
-        fi = (z::Affine -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        fi = (z::Vector{Affine} -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
         vf = vcat(vf, fi)
     end
 
+    # constructed TM
     # cTM(t,tⱼ,[zⱼ],[rⱼ₊₁]) = [zⱼ] = ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
     function cTM(t::Real, tj::Real, zj::Vector{Affine}, r::Vector{Affine})
         acc = zj
         for i in 1:(order - 1)
-            acc += ((t - tj)^i / i) * vf[i](zj)
+            acc += ((t - tj)^i / factorial(i)) * vf[i](zj)
         end
-        acc += ((t - tj)^i / i) * vf[order](r)
+        acc += ((t - tj)^order / factorial(order)) * vf[order](r)
         return acc
     end
 
     return cTM
+end
+
+function constructTMReal(f::Function, order::Int)
+    # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
+    vf = [f]
+    for i in 2:order
+        fi = (z::Vector{<:Real} -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        vf = vcat(vf, fi)
+    end
+
+    # constructed TM
+    # cTM(t,tⱼ,[zⱼ],[rⱼ₊₁]) = [zⱼ] = ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
+    function cTM(t::Real, tj::Real, zj::Vector{<:Real}, r::Vector{<:Real})
+        acc = zj
+        for i in 1:(order - 1)
+            acc += ((t - tj)^i / factorial(i)) * vf[i](zj)
+        end
+        acc += ((t - tj)^order / factorial(order)) * vf[order](r)
+        return acc
+    end
+
+    return cTM
+end
+
+function constructTM(f::Function; order::Int=5, T::Type=Affine)
+    if(T == Affine)
+        return constructTMAffine(f, order)
+    elseif(T == Real)
+        return constructTMReal(f, order)
+    else
+        error("constructTM: T is not real or an affine form")
+    end
 end
 
  #=
@@ -72,39 +77,84 @@ end
  #
  # Specification:
  # - Given f, we construct the function
- # [J](t, tⱼ, [zⱼ]) = [Jⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
-
+ # [J](t, tⱼ, [zⱼ]) 
+ #  = [Jⱼ] + ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
+ #
  # - Assumes that f: Rᴺ → Rᴺ
- # - We do the calculation with affine forms, this implies [zₒ] ≡ Affine(center([zₒ])), etc...
+ #
+ # - We do the calculation with affine forms as initial conditions, this implies 
+ # [zₒ] ≡ Affine(center([zₒ])), etc... However we permit evaluating for any type T for zⱼ
 =#
-function constructJacTM(f::Function; order:Int=5)
+function constructJacTMAffine(f::Function; order::Int=5)
 
     # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
     vf = [f]
     for i in 2:order
-        fi = (z::Affine -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        fi = (z::Vector{Affine} -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
         vf = vcat(vf, fi)
     end
 
     # store the jacobians of the lie derivatives Jac(f⁽ⁱ⁾) in vJacf
     vJacf = [ ]
     for i in 1:order
-        Jacfi = (z::Affine -> ForwardDiff.jacobian(vf[i], z))
+        Jacfi = (z::Vector{Affine} -> ForwardDiff.jacobian(vf[i], z))
         vJacf = vJacf(vJacf, Jacfi)
     end
 
     # cJacTM(t,tⱼ,[zⱼ],[Jⱼ],[rⱼ₊₁],[Rⱼ₊₁])
     # = [Jⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
-    function cJacTM(t::Real, tj::Real, zj::Vector{Affine}, Jj::Matrix{Affine}, r::Vector{Affine}, R::Matrix{Affine})
+    function cJacTM(t::Real, tj::Real, zj::Vector{Affine}, 
+                    Jj::Matrix{Affine}, r::Vector{Affine}, R::Matrix{Affine})
         acc = Jj
         for i in 1:(order - 1)
-            acc += ((t - tj)^i / i) * vJacf[i](zj) * Jj
+            acc += ((t - tj)^i / factorial(i)) * vJacf[i](zj) * Jj
         end
-        acc += ((t - tj)^i / i) * vf[order](r) * R
+        acc += ((t - tj)^order / factorial(order)) * vf[order](r) * R
         return acc
     end
 
     return cJacTM
+end
+
+function constructJacTMReal(f::Function; order::Int=5)
+
+    # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
+    vf = [f]
+    for i in 2:order
+        fi = (z::Vector{<:Real} -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        vf = vcat(vf, fi)
+    end
+
+    # store the jacobians of the lie derivatives Jac(f⁽ⁱ⁾) in vJacf
+    vJacf = [ ]
+    for i in 1:order
+        Jacfi = (z::Vector{<:Real} -> ForwardDiff.jacobian(vf[i], z))
+        vJacf = vJacf(vJacf, Jacfi)
+    end
+
+    # cJacTM(t,tⱼ,[zⱼ],[Jⱼ],[rⱼ₊₁],[Rⱼ₊₁])
+    # = [Jⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
+    function cJacTM(t::Real, tj::Real, zj::Vector{<:Real}, 
+                    Jj::Matrix{<:Real}, r::Vector{<:Real}, R::Matrix{<:Real})
+        acc = Jj
+        for i in 1:(order - 1)
+            acc += ((t - tj)^i / factorial(i)) * vJacf[i](zj) * Jj
+        end
+        acc += ((t - tj)^order / factorial(order)) * vf[order](r) * R
+        return acc
+    end
+
+    return cJacTM
+end
+
+function constructJacTM(f::Function; order::Int=5, T::Type=Affine)
+    if(T == Affine)
+        return constructJacTMAffine(f, order)
+    elseif(T == Real)
+        return constructJacTMReal(f, order)
+    else
+        error("constructTM: T is not real or an affine form")
+    end
 end
 
  #=
@@ -146,6 +196,7 @@ function fixedPoint(f::Function, z0::Vector{Affine}, n::Int, τ::Real)
         end
         if(iter > 2) # what is this guard for?
             zi = zi + β*(X .* zi)
+        end
         iter += 1
     end
 
@@ -160,15 +211,8 @@ end
  #
  # TODO: finish procedure
 =#
+#=
 function solveODE(odef::ODEFunc)
-
-     #=
-     # Get initial values of ODE problem
-     # Specification: members in odev are never mutated
-     #
-     # Similar to first half of init_system in RINO.
-    =#
-    odev = getInitialVar(odef)
 
      #=
      # Initializes arrays
@@ -186,36 +230,13 @@ function solveODE(odef::ODEFunc)
     end
     x = [AAF(odev.inputs[ii]) for ii in 1:odev.sysdim]
     xCenter = [AAF(getCenter(odev.inputs[ii])) for ii in 1:odev.sysdim]
-    eps = [
-        Interval(odev.inputs[ii] - getCenter(odev.inputs[ii]))
-            for ii in 1:odev.sysdim
-    ]
-
-    # RINO prints stats here
-    
-    # 
-     #=
-     #
-     # init_ode()
-     #
-     # TODO: passing in odef, xcenter, x, J, tn, tau, order
-     # TODO: set up these variables:
-     # odeVAR_x, odeVAR_g of form 
-    =#
-    step = HybridStepODE()
-
-    # TM_val
-
-         #=
-         # Loop iteration procedure.
-         # For each step from tBegin to tEnd do
-         # (2) TM build
-         # (3) TM evaluate (and print intermediates)
-         # (3.1)
-        =#
-        #while
+#    eps = [
+#        Interval(odev.inputs[ii] - getCenter(odev.inputs[ii]))
+#            for ii in 1:odev.sysdim
+#    ]
 
      #=
      # Print output, generate plots, etc
     =#
 end
+=#

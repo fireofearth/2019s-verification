@@ -10,6 +10,8 @@ using AffineArithmetic
 using ForwardDiff
 using Logging
 
+include("ODEIntegration.jl")
+
  #=
  # Modal Interval testing
 =#
@@ -50,10 +52,6 @@ end
     @test -A == ModalInterval(-2,-1)
     @test A - B == ModalInterval(1-4,2-3)
     @test A * B == ModalInterval(1 * 3, 2 * 4)
-end
-
-@testset "modal interval multiplicative group" begin
-    #A = ModalInterval()
 end
 
  #=
@@ -116,6 +114,28 @@ end
         f(x::Number) = (1 + x)*log(1 + x) - x; df(x::Number) = log(1 + x)
         @test df(tm) == ForwardDiff.derivative(f, tm)
     end
+end
+
+ #=
+ # ODE methods testing
+=#
+@testset "ODE methods testing" begin
+    
+     #=
+     #
+    =#
+    # 
+
+    function solution1
+     #=
+     # z' = f(z) = A * z
+    =#
+    @testset "constructTM" begin
+        f(z::Vector) = [2 4; 4 2] * z
+        z0 = [5; -1]
+        z(t::Real) = s*exp(6*t)*[1; 1] - 3*exp(-2*t)*[-1; 1]
+    end
+    
 end
 
  #=

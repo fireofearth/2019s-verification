@@ -43,7 +43,7 @@ export
     rad, getMax, getMin, getAbsMax, getAbsMin,
     compact
 
-# TODO: testing only
+# Used in test settings.
 export getLastAffineIndex, resetLastAffineIndex, ApproximationType
 
  #=
@@ -77,7 +77,6 @@ debug() = print("DEBUG\n")
  #
  # TODO: test methods
  # TODO: turn this into a decorator/macro and force calls
- # TODO: confirm functions that use `last` in aaflib are supported
 =#
 let lastAffineIndex::Int = 0
 
@@ -167,7 +166,7 @@ struct Affine <: Number
     Affine(iv::Interval) = new(mid(iv), [radius(iv)], addAffineIndex())
 
      #=
-     # Identity constructor
+     # Copy constructor, for unusual cases where we need them.
     =#
     Affine(a::Affine) = new(a.cvalue, a.deviations, a.indexes)
 
@@ -286,7 +285,7 @@ lastindex(a::Affine)  = length(a) > 0 ? last(a.indexes) : 0
 
  #=
  # Goubault+Putot methods
- # Specification: convert_int, reduce_aaf
+ # Specification: reduce_aaf
  # TODO: implement
 =#
 
@@ -528,9 +527,9 @@ function inv(p::Affine)::Affine
         end
         
     elseif(approximationType == MINRANGE)
-        error("incomplete")
+        error("inv: approx. method incomplete")
     else # if(approximationType == SECANT)
-        error("incomplete")
+        error("inv: approx. method incomplete")
     end
 
     indt = addAffineIndex(p.indexes)
