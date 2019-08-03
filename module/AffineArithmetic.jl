@@ -19,7 +19,7 @@ module AffineArithmetic
  # TODO: complete + test support for ForwardDiff
 =#
 
-import IntervalArithmetic: Interval
+import IntervalArithmetic: Interval, interval, mid, radius
 
 # since we will likely use AffineArithmetic along with IntervalArithmetic, we want to avoid namespace conflicts so we will import inf, sup here
 import IntervalArithmetic: inf, sup
@@ -29,7 +29,7 @@ import Base:
     zero, one, iszero, isone, convert, isapprox, promote_rule,
     isnan, isinf, isfinite,
     getindex, length, repr, size, firstindex, lastindex,
-    <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos
+    <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2
 
 using Logging
 
@@ -37,9 +37,9 @@ export
     zero, one, iszero, isone, convert, isapprox, promote_rule,
     isnan, isinf, isfinite,
     getindex, length, repr, size, firstindex, lastindex,
-    <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos,
+    <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2,
     AffineCoeff, AffineInd, AffineInt, Affine, affineTOL,
-    Interval, inf, sup,
+    Interval, interval, inf, sup,
     rad, getMax, getMin, getAbsMax, getAbsMin,
     compact
 
@@ -49,12 +49,15 @@ export getLastAffineIndex, resetLastAffineIndex, ApproximationType
  #=
  # Module-wide constants
  #
- # TODO: are we using the right constants?
+ # TODO: Can we simplify the usage of constants?
 =#
 @enum ApproximationType MINRANGE CHEBYSHEV SECANT
-MINRAD = 1E-10
-TOL = 1E-15
+MINRAD  = 1E-10
+TOL     = 1E-15
 EPSILON = 1E-20
+NOISE   = 1E-5
+
+# tolerance to export
 affineTOL = TOL
 
  #=
@@ -142,14 +145,7 @@ struct Affine <: Number
     indexes::Vector{AffineInd}
 
      #=
-     # Creates an Affine without deviations.
-    =#
-    Affine(v0::AffineCoeff = 0.0) = new(v0, Vector{AffineCoeff}(), Vector{AffineInd}())
-    Affine(v0::AffineInt) = new(AffineCoeff(v0), Vector{AffineCoeff}(), Vector{AffineInd}())
-
-     #=
      # Creates an Affine with deviations
-     # TODO: check viability of removing 't' from constructor
      # TODO: manage assertions in dev/production versioning
     =#
     function Affine(v0::AffineCoeff, dev::Vector{AffineCoeff}, ind::Vector{AffineInd})
@@ -158,31 +154,34 @@ struct Affine <: Number
             @assert ind[ii] <= ind[ii + 1]
         end
         new(v0, dev, setLastAffineIndex(ind))
-    end
-    
-     #=
-     # Constructor from intervals
-    =#
-    Affine(iv::Interval) = new(mid(iv), [radius(iv)], addAffineIndex())
-
-     #=
-     # Copy constructor, for unusual cases where we need them.
-    =#
-    Affine(a::Affine) = new(a.cvalue, a.deviations, a.indexes)
-
-     #=
-     # Constructor that assigns new center to Affine
-    =#
-    Affine(a::Affine, cst::AffineCoeff) = new(cst, a.deviations, a.indexes)
-
-     #=
-     # Constructor that assigns new center, and diff to Affine. We assume indexes unchanged
-    =#
-    function Affine(a::Affine, cst::AffineCoeff, dev::Vector{AffineCoeff})
-        @assert length(dev) == length(a.deviations)
-        new(cst, dev, a.indexes)
-    end
+    end  
 end
+
+ #=
+ # Copy constructor, for unusual cases where we need them.
+=#
+Affine(a::Affine) = a
+
+ #=
+ # Constructor from intervals
+=#
+Affine(iv::Interval) = Affine(mid(iv), [radius(iv)], addAffineIndex())
+
+ #=
+ # Creates an Affine without deviations.
+=#
+Affine(v0::AffineCoeff = 0.0) = Affine(v0, Vector{AffineCoeff}(), Vector{AffineInd}())
+Affine(v0::AffineInt) = Affine(AffineCoeff(v0), Vector{AffineCoeff}(), Vector{AffineInd}())
+
+ #=
+ # Constructor that assigns new center to Affine
+=#
+Affine(a::Affine, cst::AffineCoeff) = Affine(cst, a.deviations, a.indexes)
+
+ #=
+ # Constructor that assigns new center, and diff to Affine. We assume indexes unchanged
+=#
+Affine(a::Affine, cst::AffineCoeff, dev::Vector{AffineCoeff}) = Affine(cst, dev, a.indexes)
 
  #=
  # Copy constructor are implicitly supported
@@ -273,6 +272,7 @@ getAbsMax(a::Affine)::AffineCoeff = max(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 getAbsMin(a::Affine)::AffineCoeff  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 
 Interval(a::Affine) = Interval(getMin(a), getMax(a))
+interval(a::Affine) = Interval(getMin(a), getMax(a))
 
 firstindex(a::Affine) = length(a) > 0 ? a.indexes[1] : 0
 lastindex(a::Affine)  = length(a) > 0 ? last(a.indexes) : 0 
@@ -624,6 +624,8 @@ function ^(p::Affine, n::Int)
     return Affine(alpha*p[0] + dzeta, devt, indt)
 end
 
+abs2(p::Affine) = p^2
+
  #=
  # obtain sin(p) where p is Affine
  #
@@ -697,5 +699,27 @@ end
 
 compact(x::Vector{Affine}; tol::Float64=TOL) = (p -> compact(p, tol=tol)).(x)
 compact(x::Matrix{Affine}; tol::Float64=TOL) = (p -> compact(p, tol=tol)).(x)
+
+#function sumup(p::Affine, level::Float64=TOL_NOISE)
+#    
+#    devThreshold = abs(level * rad(p))
+#    if(devThreshold < TOL)
+#        devThreshold = TOL
+#    end
+#
+#    for()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 end # module AffineArithmetic

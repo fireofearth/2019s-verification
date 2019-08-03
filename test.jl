@@ -1,8 +1,3 @@
-include("./helper.jl")
-
-disp(msg) = print("$(repr(msg))\n")
-debug() = print("DEBUG\n")
-
 using Test, Random, IntervalArithmetic
 using TaylorSeries
 using ModalIntervalArithmetic
@@ -72,10 +67,11 @@ end
         f(x) = x^2; df(x) = 2*x
         @test ForwardDiff.derivative(f, a) == df(a)
         f1(x) = 1/x; f2(x) = x^(-1); f3(x) = inv(x); df(x) = -x^(-2)
-        @test ForwardDiff.derivative(f1, a) == ForwardDiff.derivative(f2, a) == ForwardDiff.derivative(f3, a) == df(a)
+        @test ForwardDiff.derivative(f1, a) ≈ ForwardDiff.derivative(f2, a) ≈ ForwardDiff.derivative(f3, a) ≈ df(a)
         f(x) = x^3; df(x) = 3*x^2
         @test ForwardDiff.derivative(f, a) == df(a)
     end
+0.00011221970179890103
 
     @testset "simple gradients" begin
         f(x::Vector) = (x[1]^2)*x[2]
@@ -119,14 +115,9 @@ end
  #=
  # ODE methods testing
 =#
+#=
 @testset "ODE methods testing" begin
-    
-     #=
-     #
-    =#
-    # 
 
-    function solution1
      #=
      # z' = f(z) = A * z
     =#
@@ -137,6 +128,7 @@ end
     end
     
 end
+=#
 
  #=
  # Affine arithmetic testing
@@ -152,8 +144,10 @@ end
  #
  # TODO: improve tests on constructors, getters, utility functionality
  # TODO: add more (~4) cases to compare solutions with aaflib
- # TODO: improve random number generators
+ # TODO: improve random generators of test cases
  # TODO: tests to check compatibility with ForwardDiff
+ # TODO: add test to verify that affine forms under functions do act as bounds for outputs
+ # of those functions
  #
  # Remark: it is not possible to recreate which indexes are assigned to noise symbols when
  # using ForwardDiff. Now using `sameForm()` instead of `==`, and compact()
@@ -439,6 +433,7 @@ end
  #  An array, with each index ii a tuple with first and second entries corresponding 
  #  to index ii and deviation ii respectively
 =#
+
 function getGroupSolCoeffs(
     f::Function, ind1::Vector, ind2::Vector ,dev1::Vector, dev2::Vector
 )
@@ -610,8 +605,6 @@ end
     a6     = Affine(centers[6], devs[6], inds[6])
 
     @testset "affine vector operations" begin
-        disp([a1 a2] * [a3; a4])
-        disp(a1*a3 + a2*a4)
         @test sameForm([a1 a2] * [a3; a4], [a1*a3 + a2*a4])
         @test sameForm([a1 a2; a3 a4] * [a5; a6], [a1*a5 + a2*a6; a3*a5 + a4*a6])
     end
@@ -704,7 +697,7 @@ end
         #f(x::Number)  = x^(-2)
         #df(x::Number) = -2*x^(-3)
         f(x::Number)  = inv(x)^2
-        df(x::Number) = 2*inv(x) * -abs2(inv(x)) # actual derivative
+        df(x::Number) = 2*inv(x) * -abs2(inv(x)) # actual derivative?
         #a1 = Affine(centers[1], devs[1], inds[1])
         a1 = Affine(centers[1], Vector{Float64}(), Vector{Int}())
         #disp("begin")
@@ -717,6 +710,21 @@ end
         @test sameForm(df(a4), ForwardDiff.derivative(f, a4))
     end
     =#
+
+     #=
+     # For higher order inverses, there is no clear closed form solution for
+     # derivatives of affines. Instead we will check that the affine forms do indeed act as
+     # bounds of real numbers.
+    =#
+    @testset "derivative of x^-n" begin
+        for n in 1:10
+            fn(x::Number) = x^(-n)
+            dfn(x::Number) = -n*x^(-n-1)
+            x = 1.2
+            a = Affine(1.2, [0.0001, -0.01, 0.001], [1, 2, 3])
+            @test dfn(x) ⊆ Interval(ForwardDiff.derivative(fn, a))
+        end
+    end
 
     @testset "gradient" begin
         f(x::Vector)  = x[1]*x[3] + 2.0*x[2]*x[1] - x[3]*x[2]
@@ -731,59 +739,5 @@ end
         ax = [a1, a2]
         @test sameForm(Hf(ax), compact(ForwardDiff.hessian(f, ax)))
     end
-
-#=
-    @testset "jacobian" begin
-        f(x::Vector) = [(x[1]*x[2]) /x[3], (x[1]*x[2])*x[3], x[1]^2 + x[2]^2 + x[3]^2]
-        Jf(x::Vector) = [x[2]/x[3]  x[1]/x[3]  -((x[1]*x[2]) /x[3] /x[3]); 
-                         x[2]*x[3]  x[1]*x[3]  x[1]*x[2]; 
-                         2*x[1]     2*x[2]     2*x[3]]
-        resetLastAffineIndex()
-        a1     = Affine(centers[1], devs[1], inds[1])
-        a2     = Affine(centers[2], devs[2], inds[2])
-        a3     = Affine(centers[3], devs[3], inds[3])
-        ax = [a1, a2, a3]
-        actual = Jf(ax)
-        resetLastAffineIndex()
-        a1     = Affine(centers[1], devs[1], inds[1])
-        a2     = Affine(centers[2], devs[2], inds[2])
-        a3     = Affine(centers[3], devs[3], inds[3])
-        ax     = [a1, a2, a3]
-        res    = ForwardDiff.jacobian(f, ax)
-        #@test res == actual
-        @test compact(res) == actual
-    end
-    =#
 end
 
-#=
-@testset "affine arithmetic ForwardDiff 2" begin
-    centers = [180.1, 205.25, 58.0]
-    devs    = [[0.1, -0.2, 1.5, -2.0],
-               [10.0, 0.5, 1.0], 
-               [-3.33, 9.0, -1.5, 5.25]]
-    inds    = [[1, 3, 4, 5],
-              [1, 4, 6],
-              [2, 3, 5, 6]]
-
-     #=
-     # First coord OK
-    =#
-    @testset "gradient of f(x, y) = x / y" begin
-        f(x::Vector) = x[1]/x[2]
-        gf(x::Vector) = [inv(x[2]), -x[1]*inv(x[2])]
-        resetLastAffineIndex()
-        a1     = Affine(centers[1], devs[1], inds[1])
-        a2     = Affine(centers[2], devs[2], inds[2])
-        ax     = [a1, a2]
-        actual = gf(ax)
-        disp(actual)
-        resetLastAffineIndex()
-        a1     = Affine(centers[1], devs[1], inds[1])
-        a2     = Affine(centers[2], devs[2], inds[2])
-        ax     = [a1, a2]
-        res    = ForwardDiff.gradient(f, ax)
-        @test compact(res) == actual
-    end
-end
-=#

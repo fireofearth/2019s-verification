@@ -1,4 +1,3 @@
-
 @enum Problem NN BRUSSELATOR VANDERPOLL CIRCLE BOX LORENZATTR BALLISTIC LOTKAVOLTERRA FITHUGHNAGUMO
 
  #=
@@ -6,7 +5,6 @@
 =#
 struct ODEInitVar
     sysdim::Unsigned
-    numSubdiv::Unsigned
     tBegin::AbstractFloat
     tEnd::AbstractFloat
     tau::AbstractFloat

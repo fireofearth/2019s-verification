@@ -1,4 +1,4 @@
-
+using LinearAlgebra
 using ForwardDiff
 using AffineArithmetic
 
@@ -7,7 +7,7 @@ using AffineArithmetic
  #
  # Specification:
  # - Given problem ̇z' = f(z), we construct the function
- # [z](t, tⱼ, [zⱼ]) = [zⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
+ # [z](t, tⱼ, [zⱼ]) = [zⱼ] + ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
  # used by the HSCC'17 article by Goubault+Putot and returns it
  #
  # - Assumes that f: Rᴺ → Rᴺ
@@ -18,7 +18,9 @@ using AffineArithmetic
  # TODO:
  # - ForwardDiff fails when applying Jacobian >7 times, so we require order ≤ 7
  # and we may need to use TaylorSeries after all
+ # - May want to collapse constructTM{Affine, Real} to one function
 =#
+
 function constructTMAffine(f::Function, order::Int)
     # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
     vf = [f]
@@ -28,7 +30,7 @@ function constructTMAffine(f::Function, order::Int)
     end
 
     # constructed TM
-    # cTM(t,tⱼ,[zⱼ],[rⱼ₊₁]) = [zⱼ] = ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
+    # cTM(t,tⱼ,[zⱼ],[rⱼ₊₁]) = [zⱼ] + ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
     function cTM(t::Real, tj::Real, zj::Vector{Affine}, r::Vector{Affine})
         acc = zj
         for i in 1:(order - 1)
@@ -58,7 +60,7 @@ function constructTMReal(f::Function, order::Int)
     end
 
     # constructed TM
-    # cTM(t,tⱼ,[zⱼ],[rⱼ₊₁]) = [zⱼ] = ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
+    # cTM(t,tⱼ,[zⱼ],[rⱼ₊₁]) = [zⱼ] + ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
     function cTM(t::Real, tj::Real, zj::Vector{<:Real}, r::Vector{<:Real})
         acc = zj
         for i in 1:(order - 1)
@@ -105,7 +107,7 @@ end
  # TODO:
  # - possible overflow when calculating fartorials, orders
 =#
-function constructJacTMAffine(f::Function; order::Int=5)
+function constructJacTMAffine(f::Function, order::Int)
 
     # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
     vf = [f]
@@ -118,25 +120,25 @@ function constructJacTMAffine(f::Function; order::Int=5)
     vJacf = [ ]
     for i in 1:order
         Jacfi = (z::Vector{Affine} -> ForwardDiff.jacobian(vf[i], z))
-        vJacf = vJacf(vJacf, Jacfi)
+        vJacf = vcat(vJacf, Jacfi)
     end
 
     # cJacTM(t,tⱼ,[zⱼ],[Jⱼ],[rⱼ₊₁],[Rⱼ₊₁])
-    # = [Jⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
+    # = [Jⱼ] + ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
     function cJacTM(t::Real, tj::Real, zj::Vector{Affine}, 
                     Jj::Matrix{Affine}, r::Vector{Affine}, R::Matrix{Affine})
         acc = Jj
         for i in 1:(order - 1)
             acc += ((t - tj)^i / factorial(i)) * vJacf[i](zj) * Jj
         end
-        acc += ((t - tj)^order / factorial(order)) * vf[order](r) * R
+        acc += ((t - tj)^order / factorial(order)) * vJacf[order](r) * R
         return acc
     end
 
     return cJacTM
 end
 
-function constructJacTMReal(f::Function; order::Int=5)
+function constructJacTMReal(f::Function, order::Int)
 
     # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
     vf = [f]
@@ -149,18 +151,26 @@ function constructJacTMReal(f::Function; order::Int=5)
     vJacf = [ ]
     for i in 1:order
         Jacfi = (z::Vector{<:Real} -> ForwardDiff.jacobian(vf[i], z))
-        vJacf = vJacf(vJacf, Jacfi)
+        vJacf = vcat(vJacf, Jacfi)
     end
 
     # cJacTM(t,tⱼ,[zⱼ],[Jⱼ],[rⱼ₊₁],[Rⱼ₊₁])
-    # = [Jⱼ] = ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
+    # = [Jⱼ] + ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
     function cJacTM(t::Real, tj::Real, zj::Vector{<:Real}, 
                     Jj::Matrix{<:Real}, r::Vector{<:Real}, R::Matrix{<:Real})
         acc = Jj
         for i in 1:(order - 1)
-            acc += ((t - tj)^i / factorial(i)) * vJacf[i](zj) * Jj
+            term = 1.0
+            for l in 1:i
+                term *= (t - tj) / l
+            end
+            acc += term * vJacf[i](zj) * Jj
         end
-        acc += ((t - tj)^order / factorial(order)) * vf[order](r) * R
+        term = 1.0
+        for l in 1:order
+            term *=  (t - tj) / l
+        end
+        acc += term * vJacf[order](r) * R
         return acc
     end
 
@@ -183,24 +193,22 @@ end
  # Specification:
  # - Compute a priori enclosure [rⱼ₊₁] of f using the interval extension of the 
  # Picard-Lindelof operator.
- # The Picard Lindelof is expressed as F[z(t)] = z₀ + ∫{tⱼ to tⱼ₊₁} f(z(s)) ds 
+ # The Picard Lindelof is expressed as F[z(t)] = z₀ + ∫{tⱼ to t} f(z(s)) ds for t ∈ [tⱼ, tⱼ₊₁]
  # With the interval extension F[z] = z₀ + (tⱼ₊₁ - tⱼ)[f]([z]) with [f] being the natural
  # interval extension of f. Both versions of F admits a unique fixed point if f is Lipschitz.
- #
- # TODO: apply sumup to affine zi so we don't have too accumulate coefficients
 =#
-function fixedPoint(f::Function, z0::Vector{Affine}, n::Int, τ::Real)
-    iiter = 1
-    zi = z0
-    T = fill(Affine(interval(0, τ)), n)
-    X = fill(Affine(interval(-1,  1)),   n)
 
-    while true
-        Fzi = z0 + (T .* f(zi))
-        i > 1 && Interval(Fzi) ⊆ Interval(zi) && break
-        zi = Fzi
-        
-        # reasoning of these choices?
+function fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real)
+    iter = 1
+    t    = Interval(0, τ)
+    x    = Interval(-1,  1)
+    zi   = z0
+    Fzi  = z0 + t*f(z0)
+
+    while(iter ≤ 1 || reduce(&, Fzi .⊈ zi))
+        @assert iter < 50
+        disp("$(iter) $(repr(Interval(zi[1]))) $(repr(Interval(zi[2])))")
+
         if(iter > 25)
             β = 1.0
         elseif(iter > 20)
@@ -211,52 +219,62 @@ function fixedPoint(f::Function, z0::Vector{Affine}, n::Int, τ::Real)
             β = 0.001
         elseif(iter > 5)
             β = 0.0001
-        elseif(iter > 2)
+        else
             β = 0.00001
         end
-        if(iter > 2) # what is this guard for?
-            zi = zi + β*(X .* zi)
+
+        if(iter > 2)
+            zi = Fzi + β*x*Fzi
+        else
+            zi = Fzi
         end
+        Fzi = z0 + t*f(zi)
+
         iter += 1
     end
 
-    return zi
+    return Affine.(zi)
 end
 
+fixedPoint
+
+
+fixedPoint(f::Function, z0::Vector{Affine}, τ::Real) = fixedPoint(f, Interval.(z0), τ)
+
  #=
- # Entrypoint to solver
+ # Computes the inner and outer approximations of the flowpipes formed by ODE z' = f(z)
  #
  # Specifications:
  # - initializes variables
  #
  # TODO: finish procedure
 =#
-#=
-function solveODE(odef::ODEFunc)
+function solveODE(f::Function, tspan::NTuple{2,<:Real}, τ<:Real,
+                  inputs::Vector{<:Interval}; order::Int=4)
 
-     #=
-     # Initializes arrays
-     # - J::Matrix{AAF} the Jacobian
-     # - x::Vector{AAF}
-     # - xCenter::Vector{AAF}
-     # - eps::Vector{Interval}
-     #
-     # Merging to set_initialconditions() second half of init_system() in RINO,
-     # and discarding init_subdiv()
-    =#
-    J = fill(AAF(0.0), odev.sysdim, odev.sysdim)
-    for ii in 1:jacdim
-        J[ii, ii] = AAF(1.0)
+    # initialize variables
+    Jⱼ      = Matrix{Affine}(I, 2, 2)
+    zⱼ      = Affine.(inputs)
+    ̃z₀ⱼ     = Affine.(mid.(inputs))
+    tⱼ      = tspan[0]
+    tₙ      = tspan[1]
+    T       = constructTM(f; order=order)
+    JacT    = constructJacTM(f; order=order)
+    # preallocate array to store tⱼ, zⱼ, iiⱼ
+
+    while(tⱼ < tₙ)
+        r     = fixpoint(f, zⱼ, τ)
+        zⱼ    = T(tⱼ + τ, tⱼ, zⱼ, r)
+        r₀    = fixpoint(f, z₀ⱼ, τ)
+        z₀ⱼ   = T(tⱼ + τ, tⱼ, z₀ⱼ, r₀)
+        # fixpoint
+        R     = NaN
+        Jⱼ    = JacT(tⱼ + τ, tⱼ, zⱼ, Jⱼ, r, R)
+        # compute inner approximation
+        iiⱼ   = NaN
+        # save the outer approx. zⱼ and inner approx. iiⱼ
+        tⱼ =+ τ
     end
-    x = [AAF(odev.inputs[ii]) for ii in 1:odev.sysdim]
-    xCenter = [AAF(getCenter(odev.inputs[ii])) for ii in 1:odev.sysdim]
-#    eps = [
-#        Interval(odev.inputs[ii] - getCenter(odev.inputs[ii]))
-#            for ii in 1:odev.sysdim
-#    ]
-
-     #=
-     # Print output, generate plots, etc
-    =#
+    
+    # get outputs
 end
-=#
