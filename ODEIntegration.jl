@@ -21,11 +21,22 @@ using AffineArithmetic
  # - May want to collapse constructTM{Affine, Real} to one function
 =#
 
+#=
+@generated function constructTM(f::Function; order::Int=5, T::Type=Affine)
+    # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
+    vf = [f]
+    for i in 2:order
+        fi = (z::Vector -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        vf = vcat(vf, fi)
+    end
+end
+=#
+
 function constructTMAffine(f::Function, order::Int)
     # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
     vf = [f]
     for i in 2:order
-        fi = (z::Vector{Affine} -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        fi = (z::Vector -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
         vf = vcat(vf, fi)
     end
 
@@ -236,9 +247,6 @@ function fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real)
     return Affine.(zi)
 end
 
-fixedPoint
-
-
 fixedPoint(f::Function, z0::Vector{Affine}, τ::Real) = fixedPoint(f, Interval.(z0), τ)
 
  #=
@@ -249,32 +257,32 @@ fixedPoint(f::Function, z0::Vector{Affine}, τ::Real) = fixedPoint(f, Interval.(
  #
  # TODO: finish procedure
 =#
-function solveODE(f::Function, tspan::NTuple{2,<:Real}, τ<:Real,
-                  inputs::Vector{<:Interval}; order::Int=4)
-
-    # initialize variables
-    Jⱼ      = Matrix{Affine}(I, 2, 2)
-    zⱼ      = Affine.(inputs)
-    ̃z₀ⱼ     = Affine.(mid.(inputs))
-    tⱼ      = tspan[0]
-    tₙ      = tspan[1]
-    T       = constructTM(f; order=order)
-    JacT    = constructJacTM(f; order=order)
-    # preallocate array to store tⱼ, zⱼ, iiⱼ
-
-    while(tⱼ < tₙ)
-        r     = fixpoint(f, zⱼ, τ)
-        zⱼ    = T(tⱼ + τ, tⱼ, zⱼ, r)
-        r₀    = fixpoint(f, z₀ⱼ, τ)
-        z₀ⱼ   = T(tⱼ + τ, tⱼ, z₀ⱼ, r₀)
-        # fixpoint
-        R     = NaN
-        Jⱼ    = JacT(tⱼ + τ, tⱼ, zⱼ, Jⱼ, r, R)
-        # compute inner approximation
-        iiⱼ   = NaN
-        # save the outer approx. zⱼ and inner approx. iiⱼ
-        tⱼ =+ τ
-    end
-    
-    # get outputs
-end
+#function solveODE(f::Function, tspan::NTuple{2,<:Real}, τ<:Real,
+#                  inputs::Vector{<:Interval}; order::Int=4)
+#
+#    # initialize variables
+#    Jⱼ      = Matrix{Affine}(I, 2, 2)
+#    zⱼ      = Affine.(inputs)
+#    ̃z₀ⱼ     = Affine.(mid.(inputs))
+#    tⱼ      = tspan[0]
+#    tₙ      = tspan[1]
+#    T       = constructTM(f; order=order)
+#    JacT    = constructJacTM(f; order=order)
+#    # preallocate array to store tⱼ, zⱼ, iiⱼ
+#
+#    while(tⱼ < tₙ)
+#        r     = fixpoint(f, zⱼ, τ)
+#        zⱼ    = T(tⱼ + τ, tⱼ, zⱼ, r)
+#        r₀    = fixpoint(f, z₀ⱼ, τ)
+#        z₀ⱼ   = T(tⱼ + τ, tⱼ, z₀ⱼ, r₀)
+#        # fixpoint
+#        R     = NaN
+#        Jⱼ    = JacT(tⱼ + τ, tⱼ, zⱼ, Jⱼ, r, R)
+#        # compute inner approximation
+#        iiⱼ   = NaN
+#        # save the outer approx. zⱼ and inner approx. iiⱼ
+#        tⱼ =+ τ
+#    end
+#    
+#    # get outputs
+#end

@@ -708,6 +708,8 @@ compact(x::Matrix{Affine}; tol::Float64=TOL) = (p -> compact(p, tol=tol)).(x)
 #    end
 #
 #    for()
+#    end
+#end
 
 
 
