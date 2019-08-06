@@ -116,8 +116,10 @@ end
  # - Compute a priori enclosure [rⱼ₊₁] of f using the interval extension of the 
  # Picard-Lindelof operator.
  # The Picard Lindelof is expressed as F[z(t)] = z₀ + ∫{tⱼ to t} f(z(s)) ds for t ∈ [tⱼ, tⱼ₊₁]
- # With the interval extension F[z] = z₀ + (tⱼ₊₁ - tⱼ)[f]([z]) with [f] being the natural
+ # With the interval extension F[z] = z₀ + [0, τ] [f]([z]) with [f] being the natural
  # interval extension of f. Both versions of F admits a unique fixed point if f is Lipschitz.
+ #
+ # TODO: convert intervals to affines and see whether there is a difference
 =#
 
 function fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real)
@@ -127,7 +129,8 @@ function fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real)
     zi   = z0
     Fzi  = z0 + t*f(z0)
 
-    while(iter ≤ 1 || reduce(&, Fzi .⊈ zi))
+    #while(iter ≤ 1 || reduce(&, Fzi .⊈ zi))
+    while(iter ≤ 1 || reduce(|, Fzi .⊈ zi))
         @assert iter < 50
         disp("$(iter) $(repr(Interval(zi[1]))) $(repr(Interval(zi[2])))")
 
@@ -161,6 +164,66 @@ end
 fixedPoint(f::Function, z0::Vector{Affine}, τ::Real) = fixedPoint(f, Interval.(z0), τ)
 
  #=
+ #
+ # TODO: not clear about implementation
+=#
+
+#=
+
+L[z] = J₀ + [0, τ] [J∘f]([z])
+[Jᵣ] = Jf([r])
+F[J] = J₀ + [0, τ] [Jᵣ] [J]
+
+=#
+function fixedJacPoint(f::Function, J₀::Matrix{<:Interval}, r::Vector{Affine}, τ::Real)
+    #Jac1_g_rough[j][k] = odeVAR_g.x[j][1].d(k);
+    #fixpoint(J_rough, Jac1_g_rough, J, tau); output = J_rough
+    #void fixpoint(vector<vector<AAF>> &y0, vector<vector<AAF>> &Jac1_g_rough, vector<vector<AAF>> &J0, double tau)
+    #multMiMi(fJ0, Jac1_g_rough, y0); // fJ0 = Jac1_g_rough * y0
+    #J1[i][j] = J0[i][j] + interval(0, tau) * fJ0[i][j].convert_int();
+    iter = 1
+    t    = Interval(0, τ)
+    x    = Interval(-1,  1)
+    Jᵢ   = J₀
+    Jᵣ = ForwardDiff.jacobian(f, r)
+    Jᵣ = Interval.(Jᵣ)
+    FJᵢ = J₀ + t*Jᵣ*J₀
+
+    while(iter ≤ 1 || reduce(|, FJᵢ .⊈ Jᵢ))
+        @assert iter < 50
+        disp("$(iter) $(repr(Interval(Ji[1,1]))) $(repr(Interval(Ji[1,2])))")
+
+        if(iter > 25)
+            β = 1.0
+        elseif(iter > 20)
+            β = 0.1
+        elseif(iter > 15)
+            β = 0.01
+        elseif(iter > 10)
+            β = 0.001
+        elseif(iter > 5)
+            β = 0.0001
+        else
+            β = 0.00001
+        end
+
+        if(iter > 2)
+            Jᵢ = FJᵢ + β*x*FJᵢ
+        else
+            Jᵢ = FJᵢ
+        end
+        FJᵢ = J₀ + t*Jᵣ*Jᵢ
+
+        iter += 1
+    end
+
+    return Jᵢ
+end
+
+fixedJacPoint(f::Function, J₀::Matrix{Affine}, 
+              r::Vector{Affine}, τ::Real) = fixedJacPoint(f, Interval.(J₀), r, τ)
+
+ #=
  # Computes the inner and outer approximations of the flowpipes formed by ODE z' = f(z)
  #
  # Specifications:
@@ -180,19 +243,25 @@ fixedPoint(f::Function, z0::Vector{Affine}, τ::Real) = fixedPoint(f, Interval.(
 #    T       = constructTM(f; order=order)
 #    JacT    = constructJacTM(f; order=order)
 #    # preallocate array to store tⱼ, zⱼ, iiⱼ
+#    stⱼ  = [tⱼ]
+#    szⱼ  = [zⱼ]
+#    siiⱼ = [NaN]
 #
 #    while(tⱼ < tₙ)
-#        r     = fixpoint(f, zⱼ, τ)
+#        r     = fixedPoint(f, zⱼ, τ)
 #        zⱼ    = T(tⱼ + τ, tⱼ, zⱼ, r)
-#        r₀    = fixpoint(f, z₀ⱼ, τ)
+#        r₀    = fixedPoint(f, z₀ⱼ, τ)
 #        z₀ⱼ   = T(tⱼ + τ, tⱼ, z₀ⱼ, r₀)
 #        # fixpoint
-#        R     = NaN
+#        R     = fixedJacPoint(f, Jⱼ, r, τ)
 #        Jⱼ    = JacT(tⱼ + τ, tⱼ, zⱼ, Jⱼ, r, R)
 #        # compute inner approximation
 #        iiⱼ   = NaN
 #        # save the outer approx. zⱼ and inner approx. iiⱼ
 #        tⱼ =+ τ
+#        stⱼ  = vcat(stⱼ,  tⱼ)
+#        szⱼ  = vcat(szⱼ,  zⱼ)
+#        siiⱼ = vcat(siiⱼ, iiⱼ)
 #    end
 #    
 #    # get outputs

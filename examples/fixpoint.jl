@@ -3,7 +3,10 @@ using AffineArithmetic
 using ForwardDiff
 
  #=
- # Fixpoint
+ # Creating enclosures of ODE at regular time intervals [tᵢ, tᵢ + τ]
+ # and verify that the analytic solution is bounded within these enclosures
+ #
+ # fixpoint() can fail when τ is too large
 =#
 include("../ODEIntegration.jl")
 
