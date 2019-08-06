@@ -18,88 +18,39 @@ using AffineArithmetic
  # TODO:
  # - ForwardDiff fails when applying Jacobian >7 times, so we require order ≤ 7
  # and we may need to use TaylorSeries after all
- # - May want to collapse constructTM{Affine, Real} to one function
+ # - No longer need T
 =#
-
-#=
-@generated function constructTM(f::Function; order::Int=5, T::Type=Affine)
-    # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
-    vf = [f]
-    for i in 2:order
-        fi = (z::Vector -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
-        vf = vcat(vf, fi)
-    end
-end
-=#
-
-function constructTMAffine(f::Function, order::Int)
-    # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
-    vf = [f]
-    for i in 2:order
-        fi = (z::Vector -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
-        vf = vcat(vf, fi)
-    end
-
-    # constructed TM
-    # cTM(t,tⱼ,[zⱼ],[rⱼ₊₁]) = [zⱼ] + ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
-    function cTM(t::Real, tj::Real, zj::Vector{Affine}, r::Vector{Affine})
-        acc = zj
-        for i in 1:(order - 1)
-            term = 1.0
-            for l in 1:i
-                term *= (t - tj) / l
-            end
-            acc += term * vf[i](zj)
-        end
-        term = 1.0
-        for l in 1:order
-            term *= (t - tj) / l
-        end
-        acc += term * vf[order](r)
-        return acc
-    end
-
-    return cTM
-end
-
-function constructTMReal(f::Function, order::Int)
-    # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
-    vf = [f]
-    for i in 2:order
-        fi = (z::Vector{<:Real} -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
-        vf = vcat(vf, fi)
-    end
-
-    # constructed TM
-    # cTM(t,tⱼ,[zⱼ],[rⱼ₊₁]) = [zⱼ] + ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
-    function cTM(t::Real, tj::Real, zj::Vector{<:Real}, r::Vector{<:Real})
-        acc = zj
-        for i in 1:(order - 1)
-            term = 1.0
-            for l in 1:i
-                term *= (t - tj) / l
-            end
-            acc += term * vf[i](zj)
-        end
-        term = 1.0
-        for l in 1:order
-            term *= (t - tj) / l
-        end
-        acc += term * vf[order](r)
-        return acc
-    end
-
-    return cTM
-end
 
 function constructTM(f::Function; order::Int=5, T::Type=Affine)
-    if(T == Affine)
-        return constructTMAffine(f, order)
-    elseif(T == Real)
-        return constructTMReal(f, order)
-    else
-        error("constructTM: T is not real or an affine form")
+    # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
+    vf = [f]
+    for i in 2:order
+        fi = (z::Vector -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        vf = vcat(vf, fi)
     end
+
+    # construct TM and methods for (Affine, Real, etc)
+    # cTM(t,tⱼ,[zⱼ],[rⱼ₊₁]) = [zⱼ] + ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
+    for T in (:Affine, :(<:Real))
+        @eval function cTM(t::Real, tj::Real, zj::Vector{$T}, r::Vector{$T})
+            acc = zj
+            for i in 1:($order - 1)
+                term = 1.0
+                for l in 1:i
+                    term *= (t - tj) / l
+                end
+                acc += term * $vf[i](zj)
+            end
+            term = 1.0
+            for l in 1:$order
+                term *= (t - tj) / l
+            end
+            acc += term * $vf[$order](r)
+            return acc
+        end
+    end
+
+    return cTM
 end
 
  #=
@@ -115,87 +66,47 @@ end
  # - We do the calculation with affine forms as initial conditions, this implies 
  # [zₒ] ≡ Affine(center([zₒ])), etc... However we permit evaluating for any type T for zⱼ
  #
- # TODO:
- # - possible overflow when calculating fartorials, orders
 =#
-function constructJacTMAffine(f::Function, order::Int)
+function constructJacTM(f::Function; order::Int=5)
 
     # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
     vf = [f]
     for i in 2:order
-        fi = (z::Vector{Affine} -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        fi = (z::Vector -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
         vf = vcat(vf, fi)
     end
 
     # store the jacobians of the lie derivatives Jac(f⁽ⁱ⁾) in vJacf
     vJacf = [ ]
     for i in 1:order
-        Jacfi = (z::Vector{Affine} -> ForwardDiff.jacobian(vf[i], z))
+        Jacfi = (z::Vector -> ForwardDiff.jacobian(vf[i], z))
         vJacf = vcat(vJacf, Jacfi)
     end
 
+    # construct jacobian TM and methods for (Affine, Real, etc)
     # cJacTM(t,tⱼ,[zⱼ],[Jⱼ],[rⱼ₊₁],[Rⱼ₊₁])
     # = [Jⱼ] + ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
-    function cJacTM(t::Real, tj::Real, zj::Vector{Affine}, 
-                    Jj::Matrix{Affine}, r::Vector{Affine}, R::Matrix{Affine})
-        acc = Jj
-        for i in 1:(order - 1)
-            acc += ((t - tj)^i / factorial(i)) * vJacf[i](zj) * Jj
-        end
-        acc += ((t - tj)^order / factorial(order)) * vJacf[order](r) * R
-        return acc
-    end
-
-    return cJacTM
-end
-
-function constructJacTMReal(f::Function, order::Int)
-
-    # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
-    vf = [f]
-    for i in 2:order
-        fi = (z::Vector{<:Real} -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
-        vf = vcat(vf, fi)
-    end
-
-    # store the jacobians of the lie derivatives Jac(f⁽ⁱ⁾) in vJacf
-    vJacf = [ ]
-    for i in 1:order
-        Jacfi = (z::Vector{<:Real} -> ForwardDiff.jacobian(vf[i], z))
-        vJacf = vcat(vJacf, Jacfi)
-    end
-
-    # cJacTM(t,tⱼ,[zⱼ],[Jⱼ],[rⱼ₊₁],[Rⱼ₊₁])
-    # = [Jⱼ] + ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
-    function cJacTM(t::Real, tj::Real, zj::Vector{<:Real}, 
-                    Jj::Matrix{<:Real}, r::Vector{<:Real}, R::Matrix{<:Real})
-        acc = Jj
-        for i in 1:(order - 1)
-            term = 1.0
-            for l in 1:i
-                term *= (t - tj) / l
+    for T in (:Affine, :(<:Real))
+        @eval function cJacTM(t::Real, tj::Real, zj::Vector{$T}, 
+                        Jj::Matrix{$T}, r::Vector{$T}, R::Matrix{$T})
+            acc = Jj
+            for i in 1:($order - 1)
+                term = 1.0
+                for l in 1:i
+                    term *= (t - tj) / l
+                end
+                acc += term * $vJacf[i](zj) * Jj
             end
-            acc += term * vJacf[i](zj) * Jj
+            term = 1.0
+            for l in 1:$order
+                term *=  (t - tj) / l
+            end
+            acc += term * $vJacf[$order](r) * R
+            return acc
         end
-        term = 1.0
-        for l in 1:order
-            term *=  (t - tj) / l
-        end
-        acc += term * vJacf[order](r) * R
-        return acc
     end
 
     return cJacTM
-end
-
-function constructJacTM(f::Function; order::Int=5, T::Type=Affine)
-    if(T == Affine)
-        return constructJacTMAffine(f, order)
-    elseif(T == Real)
-        return constructJacTMReal(f, order)
-    else
-        error("constructTM: T is not real or an affine form")
-    end
 end
 
  #=

@@ -24,7 +24,7 @@ Jz(t::Real) = [0.5*(exp(6*t) + exp(-2*t)) 0.5*(exp(6*t) - exp(-2*t));
                0.5*(exp(6*t) - exp(-2*t)) 0.5*(exp(6*t) + exp(-2*t))]
 
 # constructed taylor approximation
-cJacT = constructJacTM(f; order=5, T=Real)
+cJacT = constructJacTM(f; order=5)
 # instance of taylor approximation with initial conditions
 JacT(t::Real) = cJacT(t, 0.0, z0, J0, z0, J0)
 
