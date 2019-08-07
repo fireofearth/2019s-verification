@@ -12,11 +12,13 @@ module AffineArithmetic
  # keep track of indeterminate coefficients
  #
  # TODO: finish documentation
+ # TODO: complete + test support for ForwardDiff
+ #
+ #
+ #
  # TODO: aaflib trig. functions sin, cos; requires me to know
  # what implementation changes Goubault/Putot made for sin, cos
  # TODO: figure out what changes Goubault/Putot made for aaflib
- # TODO: Goubault/Putot functions mult_eps, hull
- # TODO: complete + test support for ForwardDiff
 =#
 
 import IntervalArithmetic: Interval, interval, mid, radius
@@ -28,7 +30,7 @@ import IntervalArithmetic: inf, sup
 import Base:
     zero, one, iszero, isone, convert, isapprox, promote_rule,
     isnan, isinf, isfinite,
-    getindex, length, repr, size, firstindex, lastindex,
+    getindex, length, show, size, firstindex, lastindex,
     <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2
 
 using Logging
@@ -36,7 +38,7 @@ using Logging
 export
     zero, one, iszero, isone, convert, isapprox, promote_rule,
     isnan, isinf, isfinite,
-    getindex, length, repr, size, firstindex, lastindex,
+    getindex, length, show, size, firstindex, lastindex,
     <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2,
     AffineCoeff, AffineInd, AffineInt, Affine, affineTOL,
     Interval, interval, inf, sup,
@@ -139,14 +141,11 @@ end
 =#
 struct Affine <: Number
     cvalue::AffineCoeff  # central value 
-    #length::Int # length of indexes 
-    #size::Int   # array size of indexes and deviations
     deviations::Vector{AffineCoeff}
     indexes::Vector{AffineInd}
 
      #=
      # Creates an Affine with deviations
-     # TODO: manage assertions in dev/production versioning
     =#
     function Affine(v0::AffineCoeff, dev::Vector{AffineCoeff}, ind::Vector{AffineInd})
         @assert length(ind) == length(dev)
@@ -184,13 +183,6 @@ Affine(a::Affine, cst::AffineCoeff) = Affine(cst, a.deviations, a.indexes)
 =#
 Affine(a::Affine, cst::AffineCoeff, dev::Vector{AffineCoeff}) = Affine(cst, dev, a.indexes)
 
- #=
- # Copy constructor are implicitly supported
- # similar to `function Affine(p::Affine)`
- #
- # Julia has no explicit type assigning, so we skip all assignment overloading.
-=#
-
 function getindex(a::Affine, ind::Int)::AffineCoeff
     if(ind < 0 || ind > length(a.deviations))
         return 0.0
@@ -206,16 +198,16 @@ function length(a::Affine)
 end
 
  #=
- # Obtain the string representation of an affine form
+ # Write representation of affine form to current output stream
 =#
-function repr(a::Affine)
+function show(io::IO, a::Affine)
     s = "$(a[0])"
     if(length(a) > 0)
         for i in 1:length(a)
             s *= " + $(a[i])ϵ$(a.indexes[i])"
         end
     end
-    return s
+    print(io::IO, s)
 end
 
  #=
@@ -711,18 +703,5 @@ compact(x::Matrix{Affine}; tol::Float64=TOL) = (p -> compact(p, tol=tol)).(x)
 #    for()
 #    end
 #end
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 end # module AffineArithmetic

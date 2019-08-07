@@ -3,92 +3,100 @@ module ModalIntervalArithmetic
 Functions are obtained from Modal interval analysis book.
 
 Sainz, M.A., Armengol, J., Calm, R., Herrero, P., Jorba, L. and Vehi, J., 2014. Modal interval analysis. Lecture Notes in Mathematics, 2091.
+
+# TODO: complete tests for ModalInterval
 =#
 
-# TODO: turn this file into a module, optimize compilation\runtime
-# TODO: complete tests for ModalInterval
-# TODO: create IntervalBox
+import Base:
+    +, -, *, /, ^,
+    <, >, ==, !=, <=,
+    ∩, ∪, ⊆, ⊇, ∈,
+    min, max,
+	show, convert, promote_rule,
+    zero, one, abs, abs2, real,
+    sqrt, exp, log, sin, cos, tan, inv
+#    exp2in, exp10, log2, log10,
+#    asin, acos, atan,
+#    sinh, cosh, tanh, asinh, acosh, atanh, sinpi, cospi,
+#    union, intersect, isempty,
+#    eltype, size,
+#    BigFloat, float, widen, big,
+#    eps
 
 using IntervalArithmetic
 
-# TODO: tidy
-import Base:
-    +, -, *, /, //, fma,
-    <, >, ==, !=, ⊆, ^, <=,
-    in, zero, one, eps, typemin, typemax, abs, abs2, real, min, max,
-    sqrt, exp, log, sin, cos, tan, inv,
-    exp2, exp10, log2, log10,
-    asin, acos, atan,
-    sinh, cosh, tanh, asinh, acosh, atanh, sinpi, cospi,
-    union, intersect, isempty,
-    convert, promote_rule, eltype, size,
-    BigFloat, float, widen, big,
-    ∩, ∪, ⊆, ⊇, ∈, eps
-
 import IntervalArithmetic:
-    inf, sup
+    Interval, inf, sup
 
 export
-    ModalInterval, Predicate,
-    mod, prop, sup, inf, display, ret, dual
-    ==, ⊆, ⊇, +, -, *, /, inv
+    ModalInterval, Interval, Predicate,
+    mod, inf, sup, show, fields, dual, prop,
+	min, max,
+	one, zero,
+    ==, ⊆, ⊇
+    #+, -, *, /, inv
 
 # In Modal Intervals, proper ≡ ∃, improper ≡ ∀, and real are both ∀,∃
-@enum Predicate proper=1 real_number=0 improper=-1 
+@enum Predicate PROPER=1 REAL_NUMBER=0 IMPROPER=-1 
 
 # Modal Interval of dimension 1
-#struct ModalInterval{T<:Real} <: Number
-struct ModalInterval
-    prime::Interval
-    pred::Predicate
+struct ModalInterval{T<:Real} <: Number
     inf::T
     sup::T
-
-    function ModalInterval(infX::Real,supX::Real)
-        pred = infX == supX ? real_number : 
-            (infX < supX ? proper : improper)
-        new(interval(min(infX,supX), max(infX,supX)), pred)
-    end
-    
-    function ModalInterval(X::Interval)
-        pred = X.lo == X.hi ? real_number : proper
-        new(interval(X), pred)
-    end
 end
+
+ModalInterval(a::Real, b::Real) = ModalInterval(promote(a, b)...)
+ModalInterval{T}(a::Real) where {T<:Real} = ModalInterval{T}(a, a)
+ModalInterval(X::Interval) = ModalInterval(X.lo, X.hi)
+ModalInterval(X::ModalInterval) = X
 
 # Getter functions
-mod(X::ModalInterval) = X.pred
-prop(X::ModalInterval) = interval(X.prime)
-
- #=
- # Returns sup(X) = x₂ where X = [x₁, x₂]
- # Note that sup is already defined for IntervalArithmetic, so overloading
-=# 
-IntervalArithmetic.sup(X::ModalInterval) = mod(X) == improper ? X.prime.lo : X.prime.hi
-
- #=
- # Returns inf(X) = x₁ where X = [x₁, x₂]
- # Note that inf is already defined for IntervalArithmetic, so overloading
-=# 
-IntervalArithmetic.inf(X::ModalInterval) = mod(X) == improper ? X.prime.hi : X.prime.lo
-
- #=
- # Prints [x₁, x₂] =: X
-=# 
-display(X::ModalInterval) = print("[$(inf(X)), $(sup(X))]")
-
-function ret(X::ModalInterval)
-    return inf(X), sup(X)
-end
-function dual(X::ModalInterval)
-    return ModalInterval(sup(X),inf(X))
-end
+inf(X::ModalInterval) = X.inf
+sup(X::ModalInterval) = X.sup
+fields(X::ModalInterval) = inf(X), sup(X)
+min(X::ModalInterval)    = min(fields(X)...)
+max(X::ModalInterval)    = max(fields(X)...)
+mod(X::ModalInterval)    = inf(X) == sup(X) ? REAL_NUMBER : 
+    (inf(X) < sup(X) ? PROPER : IMPROPER)
+prop(X::ModalInterval)   = ModalInterval(min(X), max(X))
+dual(X::ModalInterval)   = ModalInterval(sup(X), inf(X))
 
 # Modal inclusion / equality
 # In Modal Intervals, proper ≡ ∃, improper ≡ ∀, and real are both ∀,∃
 ⊆(A::ModalInterval, B::ModalInterval) = inf(A) ≥ inf(B) && sup(A) ≤ sup(B)
 ⊇(A::ModalInterval, B::ModalInterval) = B ⊆ A
 ==(A::ModalInterval, B::ModalInterval) = inf(A) == inf(B) && sup(B) == sup(A)
+
+ #=
+ # Obtain the string representation of modal interval
+ # String representation is [x₁, x₂] =: X
+=# 
+show(io::IO, X::ModalInterval) = print(io, "[$(inf(X)), $(sup(X))]")
+
+function Interval(X::ModalInterval)
+    if(mod(X) == IMPROPER)
+        throw(DomainError(X, "improper modal integrals cannot be converted to proper integrals; use Interval(Dual(X)) instead."))
+    end
+    Interval(inf(X), sup(X))
+end
+
+# Promotion rules
+promote_rule(::Type{ModalInterval{T}}, ::Type{ModalInterval{S}}) where {T<:Real, S<:Real} =
+    ModalInterval{promote_type(T, S)}
+promote_rule(::Type{ModalInterval{T}}, ::Type{S}) where {T<:Real, S<:Real} =
+    ModalInterval{promote_type(T, S)}
+
+# Conversion
+convert(::Type{ModalInterval{T}}, x::S) where {T<:Real, S<:Real} = 
+    ModalInterval{T}(x)
+convert(::Type{ModalInterval}, x::S) where {S<:Real} = 
+    ModalInterval{S}(x)
+convert(::Type{ModalInterval{T}}, X::Interval{S}) where {T<:Real, S<:Real} = 
+    ModalInterval{T}(X)
+convert(::Type{ModalInterval}, X::Interval{S}) where {S<:Real} = 
+    ModalInterval{S}(X)
+
+#=
 
 # Arithmetic
 +(A::ModalInterval, B::ModalInterval) = ModalInterval(inf(A)+inf(B),sup(A)+sup(B))
@@ -185,5 +193,7 @@ function /(A::ModalInterval, B::ModalInterval)
         return ModalInterval(a₂/b₁, a₁/b₂)
     end
 end
+
+=#
 
 end # module ModalIntervalArithmetic

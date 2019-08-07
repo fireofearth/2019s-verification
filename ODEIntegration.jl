@@ -227,7 +227,7 @@ fixedJacPoint(f::Function, J₀::Matrix{Affine},
               r::Vector{Affine}, τ::Real) = fixedJacPoint(f, Interval.(J₀), r, τ)
 
 function innerApproximate(z₀ⱼ::Vector{T}, Jⱼ::Matrix{T}, z₀::Vector{T}) where T <: Interval
-    
+    NaN
 end
 
 innerApproximate(z₀ⱼ::Vector{Affine}, Jⱼ::Matrix{Affine}, 
@@ -239,8 +239,6 @@ innerApproximate(z₀ⱼ::Vector{Affine}, Jⱼ::Matrix{Affine},
  #
  # Specifications:
  # - initializes variables
- #
- # TODO: finish procedure
 =#
 function solveODE(f::Function, tspan::NTuple{2,<:Real}, τ::Real,
                   z₀::Vector{<:Interval}; order::Int=4)
