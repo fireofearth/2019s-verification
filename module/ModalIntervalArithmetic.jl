@@ -33,16 +33,16 @@ export
     mod, prop, sup, inf, display, ret, dual
     ==, ⊆, ⊇, +, -, *, /, inv
 
-
-function debug(); print("DEBUG\n"); end
-
 # In Modal Intervals, proper ≡ ∃, improper ≡ ∀, and real are both ∀,∃
 @enum Predicate proper=1 real_number=0 improper=-1 
 
 # Modal Interval of dimension 1
+#struct ModalInterval{T<:Real} <: Number
 struct ModalInterval
     prime::Interval
     pred::Predicate
+    inf::T
+    sup::T
 
     function ModalInterval(infX::Real,supX::Real)
         pred = infX == supX ? real_number : 
