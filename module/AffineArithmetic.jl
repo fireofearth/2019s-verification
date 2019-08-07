@@ -172,6 +172,7 @@ Affine(iv::Interval) = Affine(mid(iv), [radius(iv)], addAffineIndex())
 =#
 Affine(v0::AffineCoeff = 0.0) = Affine(v0, Vector{AffineCoeff}(), Vector{AffineInd}())
 Affine(v0::AffineInt) = Affine(AffineCoeff(v0), Vector{AffineCoeff}(), Vector{AffineInd}())
+Affine(v0::Bool)      = Affine(AffineCoeff(v0), Vector{AffineCoeff}(), Vector{AffineInd}())
 
  #=
  # Constructor that assigns new center to Affine

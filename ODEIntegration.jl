@@ -191,7 +191,7 @@ function fixedJacPoint(f::Function, J₀::Matrix{<:Interval}, r::Vector{Affine},
 
     while(iter ≤ 1 || reduce(|, FJᵢ .⊈ Jᵢ))
         @assert iter < 50
-        disp("$(iter) $(repr(Interval(Ji[1,1]))) $(repr(Interval(Ji[1,2])))")
+        disp("$(iter) $(repr(Interval(Jᵢ[1,1]))) $(repr(Interval(Jᵢ[1,2])))")
 
         if(iter > 25)
             β = 1.0
@@ -217,7 +217,7 @@ function fixedJacPoint(f::Function, J₀::Matrix{<:Interval}, r::Vector{Affine},
         iter += 1
     end
 
-    return Jᵢ
+    return Affine.(Jᵢ)
 end
 
 fixedJacPoint(f::Function, J₀::Matrix{Affine}, 
