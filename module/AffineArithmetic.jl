@@ -31,6 +31,7 @@ import Base:
     zero, one, iszero, isone, convert, isapprox, promote_rule,
     isnan, isinf, isfinite,
     getindex, length, show, size, firstindex, lastindex,
+    min, max,
     <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2
 
 using Logging
@@ -42,7 +43,7 @@ export
     <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2,
     AffineCoeff, AffineInd, AffineInt, Affine, affineTOL,
     Interval, interval, inf, sup,
-    rad, getMax, getMin, getAbsMax, getAbsMin,
+    rad, getMax, getMin, getAbsMax, getAbsMin, min, max,
     compact
 
 # Used in test settings.
@@ -256,16 +257,20 @@ promote_rule(::Type{AffineInt},   ::Type{Affine})      = Affine
 rad(a::Affine)::AffineCoeff = sum(abs.(a.deviations))
 
   #=
-  # Get maximum / minimum of an Affine
+  # Getters of the bounds of an Affine
+  #
+  # TODO: getMax, getMin deprecated
  =#
 getCenter(a::Affine) = a[0]
 getMax(a::Affine)::AffineCoeff = a[0] + rad(a)
 getMin(a::Affine)::AffineCoeff = a[0] - rad(a)
+max(a::Affine)::AffineCoeff = a[0] + rad(a)
+min(a::Affine)::AffineCoeff = a[0] - rad(a)
 getAbsMax(a::Affine)::AffineCoeff = max(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 getAbsMin(a::Affine)::AffineCoeff  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
 
-Interval(a::Affine) = Interval(getMin(a), getMax(a))
-interval(a::Affine) = Interval(getMin(a), getMax(a))
+Interval(a::Affine) = Interval(min(a), max(a))
+interval(a::Affine) = Interval(a)
 
 firstindex(a::Affine) = length(a) > 0 ? a.indexes[1] : 0
 lastindex(a::Affine)  = length(a) > 0 ? last(a.indexes) : 0 
@@ -693,7 +698,13 @@ end
 compact(x::Vector{Affine}; tol::Float64=TOL) = (p -> compact(p, tol=tol)).(x)
 compact(x::Matrix{Affine}; tol::Float64=TOL) = (p -> compact(p, tol=tol)).(x)
 
-#function sumup(p::Affine, level::Float64=TOL_NOISE)
+ #=
+ # Sum all noise coefficients that are below a threshold and add them to a new noise term
+ #
+ #
+ # TODO finish this
+=#
+#function aggregate(p::Affine, level::Float64=TOL_NOISE)
 #    
 #    devThreshold = abs(level * rad(p))
 #    if(devThreshold < TOL)

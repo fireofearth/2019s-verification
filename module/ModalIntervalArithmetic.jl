@@ -26,7 +26,7 @@ import Base:
 using IntervalArithmetic
 
 import IntervalArithmetic:
-    Interval, inf, sup
+    Interval, inf, sup, ⊂, ⊃
 
 export
     ModalInterval, Interval,
@@ -34,7 +34,7 @@ export
     mod, inf, sup, show, fields, dual, prop,
 	min, max,
 	one, zero,
-    ==, ⊆, ⊇
+    ==, issubset, ⊂, ⊃
     #+, -, *, /, inv
 
 # In Modal Intervals, proper ≡ ∃, improper ≡ ∀, and real are both ∀,∃
@@ -71,11 +71,7 @@ isreal(X::ModalInterval) = mod(X) == REAL_NUMBER
 ⊂(A::ModalInterval, B::ModalInterval) = inf(A) > inf(B) && sup(A) < sup(B)
 ⊃(A::ModalInterval, B::ModalInterval) = B ⊂ A
 # ⊆ = issubset
-issubset(A::ModalInterval, B::ModalInterval) = A ⊂ A && A == B
-#⊆(A::ModalInterval, B::ModalInterval) = A ⊂ A && A == B
-#⊇(A::ModalInterval, B::ModalInterval) = A ⊃ A && A == B
-#⊈(A::ModalInterval, B::ModalInterval) = !(A ⊆ B)
-#⊉(A::ModalInterval, B::ModalInterval) = !(B ⊆ A)
+issubset(A::ModalInterval, B::ModalInterval) = A ⊂ B || A == B
 
  #=
  # Obtain the string representation of modal interval
@@ -201,5 +197,12 @@ function /(A::ModalInterval, B::ModalInterval)
         return ModalInterval(a₂/b₁, a₁/b₂)
     end
 end
+
+#===================#
+# temporary code
+import AffineArithmetic: Affine
+
+ModalInterval(a::Affine) = ModalInterval(min(a), max(a))
+#===================#
 
 end # module ModalIntervalArithmetic
