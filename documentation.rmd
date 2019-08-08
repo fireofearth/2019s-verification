@@ -58,6 +58,37 @@ $f : \mathbb{R} \rightarrow \mathbb{R}$ and affine form $x = x_0 + \sum^N_i x_i\
 
 Specification for bivariate Chebyshev approximation of ??? $f : \mathbb{R}^2 \rightarrow \mathbb{R}$ and affine
 
+## Automatic Differentiation
+
+The Julia package ForwardDiff uses dual numbers for automatic differentiation. 
+The dual number $x + \epsilon 1$ can be used to simultaneously evaluate a function at $x$ and find the derivative of the function at $x$. Similarly hyperdual numbers can obtain higher derivatives at $x$.
+
+Dual numbers have the form $x = a +\epsilon b \in \Reals[\epsilon]$. 
+It has two coordinates similar to complex numbers except $\epsilon^2 = 0$ ($\epsilon$ is nilpotent).
+It's inverse is $\inv{x} = \frac{1}{a} + \epsilon \frac{-b}{a^2}$.
+If we want to simultaneously find the derivative $f'(a)$ of a function $f : \Reals \ra \Reals$ at $a \in \Reals$ and $f(a)$, we just need to pass $x = a + \epsilon 1$.
+
+$f(x) = x + b$: $f(a + \epsilon 1) = (a + b) + \epsilon 1$  
+
+$f(x) = x^n$: $f(a + \epsilon 1) = (a + \epsilon 1)^n$:
+using the rule $(a + b)^n = a^n + {n \choose 1}a^{n-1}b + {n \choose 2}a^{n-2}b^2 + \cdots + {n \choose n-1}ab^{n-1} + b^n = \sum^n_{i = 0} a^{n-i} b^i$ we obtain
+$a^n + \epsilon {n \choose 1}a^{n-1} + \epsilon^2 {n \choose 2}a^{n-2} + \epsilon^3 {n \choose 3}a^{n-3} + \cdots + \epsilon^n$
+and since $\epsilon^2 = \epsilon^3 = \epsilon^4 = 0$ we get $a^n + \epsilon n a^{n-1}$.
+
+$f(x) = \frac{1}{x}$:
+from the inverse we know $f(a + \epsilon) = \frac{1}{a + \epsilon} = \frac{1}{x} + \epsilon \frac{-1}{x^2}$.
+
+$f(x) = \sqrt{x}$:
+notice $(a + \epsilon b)^2 = a^2 + \epsilon 2ab = c + \epsilon d$ gives us $a = \pm\sqrt{c}$ and $b = \pm\frac{d}{2\sqrt{c}}$ provided $c > 0$ ($d \in\Reals$).
+Therefore by choosing $a = \sqrt{c}$ we have $\sqrt{x + \epsilon} = \sqrt{x} + \epsilon \frac{1}{2\sqrt{x}}$.
+
+Similarly, $f(x) = \sqrt[n]{x}$:
+notice $(a + \epsilon b)^n = a^n + \epsilon na^{n-1}b = c + \epsilon d$ gives us $a := \sqrt[n]{c}$ and $b = \frac{d}{nc^{(n-1)/n}}$ provided $c > 0$ ($d \in\Reals$).
+Therefore $\sqrt[n]{x + \epsilon} = \sqrt[n]{x} + \frac{1}{n x^{(n-1)/n}}$.
+
+<https://blog.demofox.org/2014/12/30/dual-numbers-automatic-differentiation>
+<https://en.wikipedia.org/wiki/Dual_number>
+
 ## Original implementation
 
 Good news! We have the software that was used for Goubault+Putot's last 3 years of research: Robust INner and Outer Approximated Reachability (RINO) <https://github.com/cosynus-lix/RINO> as well as the dependencies FILIB++ <http://www2.math.uni-wuppertal.de/wrswt/software/filib.html> for interval computations, and FADBAD <http://www.fadbad.com/fadbad.html> for automatic diff.
