@@ -137,6 +137,10 @@ end
         @test inf(X) ≤ 0 && sup(X) ≥ 0
         X = random_dz_interval()
         @test inf(X) ≥ 0 && sup(X) ≤ 0
+        X = random_r_interval()
+        @test inf(X) ≤ sup(X)
+        X = random_dr_interval()
+        @test inf(X) ≥ sup(X)
     end
 end
 
@@ -216,6 +220,15 @@ end
         Yvec = [Y11; Y21]
         Xmat = [X11 X12; X21 X22]
         Ymat = [Y11 Y12; Y21 Y22]
+
+        @testset "vector eval" begin
+            @test isproper([random_r_interval(); 
+                            random_r_interval();
+                            random_r_interval()])
+            @test isimproper([random_dr_interval(); 
+                              random_dr_interval();
+                              random_dr_interval()])
+        end
 
         @testset "additive module" begin
             @test Xvec + Yvec == [X11 + Y11; X21 + Y21]

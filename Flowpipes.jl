@@ -143,7 +143,7 @@ function fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real)
     #while(iter ≤ 1 || reduce(&, Fzi .⊈ zi))
     while(iter ≤ 1 || reduce(|, Fzi .⊈ zi))
         @assert iter < 50
-        disp("$(iter) $(repr(Interval(zi[1]))) $(repr(Interval(zi[2])))")
+        #disp("$(iter) $(repr(Interval(zi[1]))) $(repr(Interval(zi[2])))")
 
         if(iter > 25)
             β = 1.0
@@ -203,7 +203,7 @@ function fixedJacPoint(f::Function, J₀::Matrix{<:Interval}, r::Vector{Affine},
 
     while(iter ≤ 1 || reduce(|, FJᵢ .⊈ Jᵢ))
         @assert iter < 50
-        disp("$(iter) $(repr(Interval(Jᵢ[1,1]))) $(repr(Interval(Jᵢ[1,2])))")
+        #disp("$(iter) $(repr(Interval(Jᵢ[1,1]))) $(repr(Interval(Jᵢ[1,2])))")
 
         if(iter > 25)
             β = 1.0
@@ -242,7 +242,7 @@ function innerApproximate(z₀ⱼ::Vector{T}, Jⱼ::Matrix{T}, z₀::Vector{T}) 
     if(isimproper(ia))
         return Interval.(prop.(ia))
     else
-        return NaN
+        return fill(NaN, length(z₀))
     end
 end
 
@@ -275,6 +275,7 @@ function approximate(f::Function, tspan::NTuple{2,<:Real}, τ::Real,
                   z₀::Vector{<:Interval}; order::Int=4)
 
     # initialize variables
+    iter = 1
     Jⱼ      = Matrix{Affine}(I, 2, 2)
     tⱼ      = tspan[1]
     # flowpipe outer appoximating ODE with inputs as initial conditions
@@ -287,10 +288,11 @@ function approximate(f::Function, tspan::NTuple{2,<:Real}, τ::Real,
     JacT    = constructJacTM(f; order=order)
     # preallocate array to store tⱼ, zⱼ, iaⱼ
     st  = [tⱼ]
-    sz  = [z₀]
-    sia = [NaN]
+    sz  = z₀
+    sia = fill(NaN, length(z₀))
 
     while(tⱼ < tₙ)
+        disp("iteration = $(iter); tⱼ = $(tⱼ)")
         r     = fixedPoint(f, zⱼ, τ)
         zⱼ    = T(tⱼ + τ, tⱼ, zⱼ, r)
         r₀    = fixedPoint(f, z₀ⱼ, τ)
@@ -300,10 +302,11 @@ function approximate(f::Function, tspan::NTuple{2,<:Real}, τ::Real,
         # compute inner approximation
         iaⱼ   = innerApproximate(z₀ⱼ, Jⱼ, z₀)
         # save the outer approx. zⱼ and inner approx. iaⱼ
-        st    = vcat(st,  tⱼ)
-        sz    = vcat(sz,  Interval.(zⱼ))
-        sia   = vcat(sia, iaⱼ)
         tⱼ += τ
+        st    = vcat(st,  tⱼ)
+        sz    = hcat(sz,  Interval.(zⱼ))
+        sia   = hcat(sia, iaⱼ)
+        iter += 1
     end
     
     return st, sz, sia
