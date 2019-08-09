@@ -1561,13 +1561,24 @@ git push origin master</code></pre>
 <p>All non-affine operations (*,/,inv,^,sin,cos) default to Chebyshev approximation.</p>
 <p>Specification for univariate Chebyshev approximation of bounded, twice differentiable <span class="math inline">\(f : \mathbb{R} \rightarrow \mathbb{R}\)</span> and affine form <span class="math inline">\(x = x_0 + \sum^N_i x_i\epsilon_i\)</span></p>
 <ol style="list-style-type: decimal">
-<li>let <span class="math inline">\(a = x_0 - \sum^N_i |x_i|\)</span>, and <span class="math inline">\(b = x_0 + \sum^N_i |x_i|\)</span>. We require <span class="math inline">\(f&#39;&#39;(u) \neq 0\)</span> for <span class="math inline">\(u \in (a, b)\)</span></li>
+<li>let <span class="math inline">\(a = x_0 - \sum^N_i |x_i|\)</span>, and <span class="math inline">\(b = x_0 + \sum^N_i |x_i|\)</span>. We require <span class="math inline">\(f''(u) \neq 0\)</span> for <span class="math inline">\(u \in (a, b)\)</span></li>
 <li>let <span class="math inline">\(\alpha = (f(b) - f(a)) / (b - a)\)</span> be the slope of the line <span class="math inline">\(l(x)\)</span> that interpolates the points <span class="math inline">\((a, f(a))\)</span> and <span class="math inline">\((b, f(b))\)</span>. Then <span class="math inline">\(l(x) = \alpha x + (f(a) - \alpha a)\)</span>.</li>
-<li>solve for <span class="math inline">\(u \in (a, b)\)</span> such that <span class="math inline">\(f&#39;(u) = \alpha\)</span>. By Mean-value theorem <span class="math inline">\(u\)</span> must exists.</li>
+<li>solve for <span class="math inline">\(u \in (a, b)\)</span> such that <span class="math inline">\(f'(u) = \alpha\)</span>. By Mean-value theorem <span class="math inline">\(u\)</span> must exists.</li>
 <li><span class="math inline">\(\zeta = \frac{1}{2} (f(u) + l(u)) - \alpha u\)</span></li>
 <li><span class="math inline">\(\delta = \frac{1}{2} |f(u) - l(u)|\)</span></li>
 </ol>
 <p>Specification for bivariate Chebyshev approximation of ??? <span class="math inline">\(f : \mathbb{R}^2 \rightarrow \mathbb{R}\)</span> and affine</p>
+</div>
+<div id="automatic-differentiation" class="section level2">
+<h2>Automatic Differentiation</h2>
+<p>The Julia package ForwardDiff uses dual numbers for automatic differentiation. The dual number <span class="math inline">\(x + \epsilon 1\)</span> can be used to simultaneously evaluate a function at <span class="math inline">\(x\)</span> and find the derivative of the function at <span class="math inline">\(x\)</span>. Similarly hyperdual numbers can obtain higher derivatives at <span class="math inline">\(x\)</span>.</p>
+<p>Dual numbers have the form <span class="math inline">\(x = a +\epsilon b \in \Reals[\epsilon]\)</span>. It has two coordinates similar to complex numbers except <span class="math inline">\(\epsilon^2 = 0\)</span> (<span class="math inline">\(\epsilon\)</span> is nilpotent). It’s inverse is <span class="math inline">\(\inv{x} = \frac{1}{a} + \epsilon \frac{-b}{a^2}\)</span>. If we want to simultaneously find the derivative <span class="math inline">\(f'(a)\)</span> of a function <span class="math inline">\(f : \Reals \ra \Reals\)</span> at <span class="math inline">\(a \in \Reals\)</span> and <span class="math inline">\(f(a)\)</span>, we just need to pass <span class="math inline">\(x = a + \epsilon 1\)</span>.</p>
+<p><span class="math inline">\(f(x) = x + b\)</span>: <span class="math inline">\(f(a + \epsilon 1) = (a + b) + \epsilon 1\)</span></p>
+<p><span class="math inline">\(f(x) = x^n\)</span>: <span class="math inline">\(f(a + \epsilon 1) = (a + \epsilon 1)^n\)</span>: using the rule <span class="math inline">\((a + b)^n = a^n + {n \choose 1}a^{n-1}b + {n \choose 2}a^{n-2}b^2 + \cdots + {n \choose n-1}ab^{n-1} + b^n = \sum^n_{i = 0} a^{n-i} b^i\)</span> we obtain <span class="math inline">\(a^n + \epsilon {n \choose 1}a^{n-1} + \epsilon^2 {n \choose 2}a^{n-2} + \epsilon^3 {n \choose 3}a^{n-3} + \cdots + \epsilon^n\)</span> and since <span class="math inline">\(\epsilon^2 = \epsilon^3 = \epsilon^4 = 0\)</span> we get <span class="math inline">\(a^n + \epsilon n a^{n-1}\)</span>.</p>
+<p><span class="math inline">\(f(x) = \frac{1}{x}\)</span>: from the inverse we know <span class="math inline">\(f(a + \epsilon) = \frac{1}{a + \epsilon} = \frac{1}{x} + \epsilon \frac{-1}{x^2}\)</span>.</p>
+<p><span class="math inline">\(f(x) = \sqrt{x}\)</span>: notice <span class="math inline">\((a + \epsilon b)^2 = a^2 + \epsilon 2ab = c + \epsilon d\)</span> gives us <span class="math inline">\(a = \pm\sqrt{c}\)</span> and <span class="math inline">\(b = \pm\frac{d}{2\sqrt{c}}\)</span> provided <span class="math inline">\(c &gt; 0\)</span> (<span class="math inline">\(d \in\Reals\)</span>). Therefore by choosing <span class="math inline">\(a = \sqrt{c}\)</span> we have <span class="math inline">\(\sqrt{x + \epsilon} = \sqrt{x} + \epsilon \frac{1}{2\sqrt{x}}\)</span>.</p>
+<p>Similarly, <span class="math inline">\(f(x) = \sqrt[n]{x}\)</span>: notice <span class="math inline">\((a + \epsilon b)^n = a^n + \epsilon na^{n-1}b = c + \epsilon d\)</span> gives us <span class="math inline">\(a := \sqrt[n]{c}\)</span> and <span class="math inline">\(b = \frac{d}{nc^{(n-1)/n}}\)</span> provided <span class="math inline">\(c &gt; 0\)</span> (<span class="math inline">\(d \in\Reals\)</span>). Therefore <span class="math inline">\(\sqrt[n]{x + \epsilon} = \sqrt[n]{x} + \frac{1}{n x^{(n-1)/n}}\)</span>.</p>
+<p><a href="https://blog.demofox.org/2014/12/30/dual-numbers-automatic-differentiation" class="uri">https://blog.demofox.org/2014/12/30/dual-numbers-automatic-differentiation</a> <a href="https://en.wikipedia.org/wiki/Dual_number" class="uri">https://en.wikipedia.org/wiki/Dual_number</a></p>
 </div>
 <div id="original-implementation" class="section level2">
 <h2>Original implementation</h2>
@@ -1589,16 +1600,16 @@ git push origin master</code></pre>
 <h3>Affine Arithmetic</h3>
 <p>Affine arithmetic is supported by the <code>aaflib</code> library.</p>
 </div>
-<div id="automatic-differentiation" class="section level3">
+<div id="automatic-differentiation-1" class="section level3">
 <h3>Automatic Differentiation</h3>
 <p>RINO requires <a href="http://www.fadbad.com/fadbad.html">FADBAD++</a> for automatic differentiation. This library is much more powerful than the JuliaDiff package in that it allows for</p>
 <ul>
 <li></li>
 <li><p>evaluating derivatives</p></li>
-<li><p>T is used for taylor expansion.</p></li>
+<li>T is used for taylor expansion.</li>
 <li><p>F is used for forward differentiation.</p></li>
 </ul>
-<p>Given ODE function <span class="math inline">\(f : R \rightarrow R\)</span> where <span class="math inline">\(\vec{x}&#39; = f(\vec{x})\)</span>, forward differentiation is called on <span class="math inline">\(f\)</span> to obtain <span class="math inline">\(f&#39;\)</span> and then the taylor approximation <span class="math inline">\(p(f&#39;)\)</span> of <span class="math inline">\(f&#39;\)</span> is obtained. The Julia implementation requires this sequence of operations to occur.</p>
+<p>Given ODE function <span class="math inline">\(f : R \rightarrow R\)</span> where <span class="math inline">\(\vec{x}' = f(\vec{x})\)</span>, forward differentiation is called on <span class="math inline">\(f\)</span> to obtain <span class="math inline">\(f'\)</span> and then the taylor approximation <span class="math inline">\(p(f')\)</span> of <span class="math inline">\(f'\)</span> is obtained. The Julia implementation requires this sequence of operations to occur.</p>
 </div>
 <div id="classes" class="section level3">
 <h3>Classes</h3>
@@ -1665,6 +1676,7 @@ export LD_LIBRARY_PATH</code></pre>
 </div>
 <div id="julia-rino-implementation" class="section level2">
 <h2>Julia RINO implementation</h2>
+<p><a href="https://docs.julialang.org/en/v1/">Documentation</a></p>
 <div id="components" class="section level3">
 <h3>Components</h3>
 <p>Required functionality:</p>
@@ -1675,13 +1687,28 @@ export LD_LIBRARY_PATH</code></pre>
 <li>Modal interval arithmetic: in particular we want to evaluate the mean-value extension (multiplication, addition, and matrix vector multiplication).</li>
 </ul>
 <p>A critique of existing Julia components:</p>
-<p><strong>real numbers</strong> (Base package)</p>
+<p><strong>Real</strong> (Base package) <a href="https://github.com/JuliaLang/julia/blob/master/base/Base.jl" class="uri">https://github.com/JuliaLang/julia/blob/master/base/Base.jl</a></p>
 <p>The abstract type Real is a supertype of floats, integers and unsigned integers and Real has accommodating Base methods:</p>
 <p><code>iszero</code>, <code>isone</code>, <code>one</code>, <code>zero</code> for add./mult. identities.<br />
 <code>promotion_rule</code><br />
 <code>convert</code><br />
 <code>rounding</code>, <code>setrounding</code><br />
 <code>isapprox</code></p>
+<p><strong>Number</strong> (Base package) <a href="https://github.com/JuliaLang/julia/blob/master/base/number.jl" class="uri">https://github.com/JuliaLang/julia/blob/master/base/number.jl</a></p>
+<ul>
+<li>Complex <a href="https://github.com/JuliaLang/julia/blob/master/base/complex.jl" class="uri">https://github.com/JuliaLang/julia/blob/master/base/complex.jl</a></li>
+<li>math <a href="https://github.com/JuliaLang/julia/blob/master/base/math.jl" class="uri">https://github.com/JuliaLang/julia/blob/master/base/math.jl</a></li>
+<li>utilities <a href="https://github.com/JuliaLang/julia/blob/master/base/number.jl" class="uri">https://github.com/JuliaLang/julia/blob/master/base/number.jl</a></li>
+<li>type promotion <a href="https://github.com/JuliaLang/julia/blob/master/base/promotion.jl" class="uri">https://github.com/JuliaLang/julia/blob/master/base/promotion.jl</a></li>
+</ul>
+<p>Any subtype of Number must support</p>
+<p>sign() convert(::Type{T}, x::T) convert(::Type{T}, x::Number)</p>
+<p><strong>Outstanding</strong>:</p>
+<ul>
+<li>Complete list of methods using Real, Number</li>
+<li>Where is Real, Number declared in Base package?</li>
+<li>What are the differences between Real, Number: if a function has arguments in Real type, then can that same function evaluate with arguments in Number type?</li>
+</ul>
 <p><strong>automatic forward differentiation</strong> <a href="https://github.com/JuliaDiff/ForwardDiff.jl" class="uri">https://github.com/JuliaDiff/ForwardDiff.jl</a><br />
 documentation: <a href="http://www.juliadiff.org/ForwardDiff.jl/stable/" class="uri">http://www.juliadiff.org/ForwardDiff.jl/stable/</a></p>
 <p>Points:</p>
@@ -1721,6 +1748,7 @@ documentation: <a href="http://www.juliadiff.org/TaylorSeries.jl/stable/" class=
 <ul>
 <li>Interestingly, TaylorSeries does not provide a method that takes a function as input to evaluate a taylor approximation. Instead it provides types Taylor1 and TaylorN that once passed as variables to a function generates a taylor approximation as output. This infers that we can obtain a taylor approximation of a derivative of <span class="math inline">\(f\)</span> when passing <span class="math inline">\(f\)</span> and an instance of Taylor1 to <code>ForwardDiff.derivative()</code>.</li>
 <li>TaylorSeries supports arbitrary types as coefficients (limitations?).</li>
+<li>Taylor1, TaylorN are subtypes of Number, and are iterable <a href="https://github.com/JuliaDiff/TaylorSeries.jl/blob/master/src/auxiliary.jl" class="uri">https://github.com/JuliaDiff/TaylorSeries.jl/blob/master/src/auxiliary.jl</a></li>
 </ul>
 <p><strong>taylor models</strong> <a href="https://github.com/JuliaIntervals/TaylorModels.jl" class="uri">https://github.com/JuliaIntervals/TaylorModels.jl</a><br />
 documentation: <a href="https://juliaintervals.github.io/TaylorModels.jl/stable/" class="uri">https://juliaintervals.github.io/TaylorModels.jl/stable/</a></p>
@@ -1739,7 +1767,7 @@ ODEIntegration</p>
 </div>
 <div id="development-environment" class="section level3">
 <h3>Development Environment</h3>
-<p>OS: Linux, Arch Linux<br />
+<p>OS: Linux, GNU/Linux<br />
 System package manager: pacman<br />
 Distribution Environment: Anaconda 3<br />
 Python: &gt;3.5<br />
@@ -1758,21 +1786,27 @@ Qt version (for plots): 5</p>
 <p>Complete discourse on interval and affine arithmetic operations are discussed in the paper <a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.36.8089">Self-Validated Numerical Methods and Applications (1997)</a> by Jorge Stolfi, Luiz Henrique De Figueiredo.</p>
 <p>Implemented functionality:</p>
 <p>zero, one, iszero, isone, convert, isapprox, promote_rule, getindex, length, repr, size, firstindex, lastindex, &lt;, &lt;=, &gt;, &gt;=, ==, +, -, *, /, inv, ^, sin, cos, Affine Interval, inf, sup, rad, getMax, getMin, getAbsMax, getAbsMin, compact</p>
-</div>
-<div id="automatic-differentiation-1" class="section level3">
-<h3>Automatic differentiation</h3>
-<p><a href="https://jrevels.github.io/Cassette.jl/latest/whycassette.html">Cassette</a> was originally designed for better language support for automatic differentiation. <a href="https://github.com/denizyuret/AutoGrad.jl">AutoGrad</a> is a port of Python <a href="https://github.com/HIPS/autograd">autograd</a>. I’m avoiding this package due to lack of documentation.</p>
-<p>Both <a href="https://github.com/gaika/AutoDiffSource.jl">AutoDiffSource</a> and ReverseDiffSource are deprecated and limited to Julia version 0.5 (and the are hence in the JuliaAttic list)</p>
-<p>By the process of elimination <a href="https://github.com/JuliaDiff/ForwardDiff.jl">ForwardDiff</a> is the one I will be using.</p>
-<p>In addition Affine must support the following:</p>
+<p>Affine forms must evaluate under the following functions:</p>
 <p><code>Base.convert</code> -<br />
 <code>Base.one</code> - return a multiplicative identity for x: a value such that one(x)*x == x*one(x) == x. Alternatively one(T) can take a type T, in which case one returns a multiplicative identity for any x of type T.<br />
 <code>Base.isone</code> - return true if x == one(x) if x is an array, this checks whether x is an identity matrix.<br />
 <code>Base.zero</code> -<br />
 <code>Base.iszero</code><br />
-<code>Base.promotion_rule</code> -</p>
-<p><strong>Things to try</strong>:</p>
-<p><strong>Outstanding</strong>: ForwardDiff does not give good expressions for derivatives when the original expression contains inverse (i.e. <code>1.0 /x</code>, <code>inv(x)</code>, or <code>x^(-1)</code>). For example:</p>
+<code>Base.promotion_rule</code> -<br />
+<code>Base.isapprox</code> -<br />
+<code>Base.rtoldefault</code> - returns the default relative tolerance value base on number type.</p>
+</div>
+<div id="automatic-differentiation-2" class="section level3">
+<h3>Automatic differentiation</h3>
+<p><a href="https://jrevels.github.io/Cassette.jl/latest/whycassette.html">Cassette</a> was originally designed for better language support for automatic differentiation. <a href="https://github.com/denizyuret/AutoGrad.jl">AutoGrad</a> is a port of Python <a href="https://github.com/HIPS/autograd">autograd</a>. I’m avoiding this package due to lack of documentation.</p>
+<p>Both <a href="https://github.com/gaika/AutoDiffSource.jl">AutoDiffSource</a> and ReverseDiffSource are deprecated and limited to Julia version 0.5 (and the are hence in the JuliaAttic list)</p>
+<p>By the process of elimination <a href="https://github.com/JuliaDiff/ForwardDiff.jl">ForwardDiff</a> is the one I will be using.</p>
+<p>We wish to do the following using forward differentiation:</p>
+<ul>
+<li>generate taylor approximations of derivatives.</li>
+<li>compute affine forms under derivatives of functions.</li>
+</ul>
+<p><strong>Outstanding</strong>: ForwardDiff does not give good expressions for derivatives when the original expression contains inverse (i.e. <code>1.0 /x</code>, <code>inv(x)</code>, or <code>x^(-1)</code>). For example:</p>
 <p>I expected the expression <code>f(x) = x^(-2)</code> to have the derivative <code>df(x) /dx = -2x^(-3)</code>. However ForwardDiff gives an expressions more complicated than: <code>2*inv(x) * -abs2(inv(x))</code>. I was unable to find the exact expression despite using the DiffLogger module I created (in <code>module</code>).</p>
 <p>This makes it pretty challenging to test ForwardDiff on affine forms. Since affine operations (*, /) only computes approximations, the expression of the formula matters and a more concise formula gives approximations that can differ by <code>10E-1</code>. Since this does not aversely affect the goal of porting RINO to Julia I’m ignoring this for now.</p>
 </div>

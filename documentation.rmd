@@ -7,6 +7,9 @@ output:
     toc: true
     toc_float: true
     toc_depth: 3
+header-includes:
+- \usepackage{amsmath}
+- \input{./scripts/notation}
 ---
 
 These notes are made using R Markdown.
@@ -312,7 +315,7 @@ ODEIntegration
 
 ### Development Environment
 
-OS: Linux, Arch Linux  
+OS: Linux, GNU/Linux  
 System package manager: pacman  
 Distribution Environment: Anaconda 3  
 Python: >3.5  
