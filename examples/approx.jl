@@ -18,7 +18,7 @@ f(z::Vector) = [1.0 - 2.5*z[1] + z[2]*z[1]^2; 1.5*z[1] - z[2]*z[1]^2]
 #
 # initial conditions
 # tₙ = 0.3. τ = 0.05 -> 6 steps
-tspan = (0.0, 1.0) # tₙ = 10.0
+tspan = (0.0, 0.6) # tₙ = 10.0
 τ     = 0.05
 z₀ = [0.9 .. 1.0, 0.0 .. 0.1]
 
@@ -41,7 +41,7 @@ p = plot(st, x -> NaN, xaxis="t", yaxis="z(t)")
 plot!(p, st, sz1, label="[z₁](t)", lw=1, linecolor=:red)
 plot!(p, st, sz2, label="[z₂](t)", lw=1, linecolor=:red)
 plot!(p, st, sia1, label="]z₁[(t)", lw=1, linecolor=:blue)
-plot!(p, st, sia1, label="]z₂[(t)", lw=1, linecolor=:blue)
+plot!(p, st, sia2, label="]z₂[(t)", lw=1, linecolor=:blue)
 
 p
 

@@ -238,7 +238,7 @@ fixedJacPoint(f::Function, J₀::Matrix{Affine},
 function innerApproximate(z₀ⱼ::Vector{T}, Jⱼ::Matrix{T}, z₀::Vector{T}) where 
         T <: ModalInterval
     zt₀ = mid.(z₀)
-    ia = z₀ⱼ + Jⱼ*(z₀ - zt₀)
+    ia = z₀ⱼ + Jⱼ*(dual.(z₀) - zt₀)
     if(isimproper(ia))
         return Interval.(prop.(ia))
     else
