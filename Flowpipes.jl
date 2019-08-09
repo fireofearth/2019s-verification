@@ -1,7 +1,17 @@
 using LinearAlgebra
 using IntervalArithmetic
 using AffineArithmetic
+using ModalIntervalArithmetic
 using ForwardDiff
+
+#=
+Flowpipes module
+
+Currently contains solver for inner and outer reachability approximations of flowpipes.
+
+TODO:
+- turn this into a module.
+=#
 
  #=
  # Construct Taylor Model
@@ -168,14 +178,13 @@ fixedPoint(f::Function, z0::Vector{Affine}, τ::Real) = fixedPoint(f, Interval.(
  # Compute a priori enclosure for [Rⱼ₊₁]
  #
  # TODO: not clear about implementation
-=#
 
-#=
-
+fixedPoint uses
 L[z] = J₀ + [0, τ] [J∘f]([z])
+
+whereas fixedJacPoint uses
 [Jᵣ] = Jf([r])
 F[J] = J₀ + [0, τ] [Jᵣ] [J]
-
 =#
 function fixedJacPoint(f::Function, J₀::Matrix{<:Interval}, r::Vector{Affine}, τ::Real)
     # RINO:
@@ -226,38 +235,60 @@ end
 fixedJacPoint(f::Function, J₀::Matrix{Affine}, 
               r::Vector{Affine}, τ::Real) = fixedJacPoint(f, Interval.(J₀), r, τ)
 
-function innerApproximate(z₀ⱼ::Vector{T}, Jⱼ::Matrix{T}, z₀::Vector{T}) where T <: Interval
-    NaN
+function innerApproximate(z₀ⱼ::Vector{T}, Jⱼ::Matrix{T}, z₀::Vector{T}) where 
+        T <: ModalInterval
+    zt₀ = mid.(z₀)
+    ia = z₀ⱼ + Jⱼ*(z₀ - zt₀)
+    if(isimproper(ia))
+        return Interval.(prop.(ia))
+    else
+        return NaN
+    end
 end
 
 innerApproximate(z₀ⱼ::Vector{Affine}, Jⱼ::Matrix{Affine}, 
-                 z₀::Vector{T}) <: Interval = innerApproximate(Interval.(z₀ⱼ), 
-                                                               Interval.(Jⱼ), z₀)
+                 z₀::Vector{T}) where T <: Interval = 
+    innerApproximate(ModalInterval.(z₀ⱼ), ModalInterval.(Jⱼ), ModalInterval.(z₀))
 
  #=
  # Computes the inner and outer approximations of the flowpipes formed by ODE z' = f(z)
  #
+ # Arguments:
+ # - f:       function to ODE z' = f(z)
+ # - tspan:   tuple containing time interval (t₀, tₙ) (t₀ start time; tₙ end time)
+ # - τ:       the amount of time for each time step
+ #            fixedPoint, fixedJacPoint *usually* converges when τ ≤ 0.05
+ # - z₀:      interval bound on initial conditions
+ # - [order]: order of taylor approximation
+ #
+ # Output: a tuple containing in order
+ # - st:  set of 
+ # - sz:  s
+ # - sia: set intervals containing of inner approximationss, or NaN
+ #
  # Specifications:
  # - initializes variables
+ #
+ # TODO: preallocate arrays st, sz, sia
 =#
-function solveODE(f::Function, tspan::NTuple{2,<:Real}, τ::Real,
+function approximate(f::Function, tspan::NTuple{2,<:Real}, τ::Real,
                   z₀::Vector{<:Interval}; order::Int=4)
 
     # initialize variables
     Jⱼ      = Matrix{Affine}(I, 2, 2)
-    tⱼ      = tspan[0]
+    tⱼ      = tspan[1]
     # flowpipe outer appoximating ODE with inputs as initial conditions
     # at each point tⱼ
     zⱼ      = Affine.(z₀)
     # forms approximating the center of inputs at time tⱼ
     z₀ⱼ     = Affine.(mid.(z₀))
-    tₙ      = tspan[1]
+    tₙ      = tspan[2]
     T       = constructTM(f; order=order)
     JacT    = constructJacTM(f; order=order)
-    # preallocate array to store tⱼ, zⱼ, iiⱼ
-    stⱼ  = [tⱼ]
-    szⱼ  = [z₀]
-    siiⱼ = [NaN]
+    # preallocate array to store tⱼ, zⱼ, iaⱼ
+    st  = [tⱼ]
+    sz  = [z₀]
+    sia = [NaN]
 
     while(tⱼ < tₙ)
         r     = fixedPoint(f, zⱼ, τ)
@@ -267,13 +298,13 @@ function solveODE(f::Function, tspan::NTuple{2,<:Real}, τ::Real,
         R     = fixedJacPoint(f, Jⱼ, r, τ)
         Jⱼ    = JacT(tⱼ + τ, tⱼ, zⱼ, Jⱼ, r, R)
         # compute inner approximation
-        iiⱼ   = innerApproximate(z₀ⱼ, Jⱼ, z₀)
-        # save the outer approx. zⱼ and inner approx. iiⱼ
-        stⱼ  = vcat(stⱼ,  tⱼ)
-        szⱼ  = vcat(szⱼ,  Interval.(zⱼ))
-        siiⱼ = vcat(siiⱼ, iiⱼ)
-        tⱼ =+ τ
+        iaⱼ   = innerApproximate(z₀ⱼ, Jⱼ, z₀)
+        # save the outer approx. zⱼ and inner approx. iaⱼ
+        st    = vcat(st,  tⱼ)
+        sz    = vcat(sz,  Interval.(zⱼ))
+        sia   = vcat(sia, iaⱼ)
+        tⱼ += τ
     end
     
-    # get outputs
+    return st, sz, sia
 end

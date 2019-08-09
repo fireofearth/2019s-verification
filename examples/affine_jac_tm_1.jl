@@ -6,6 +6,9 @@ using ForwardDiff
  #=
  # Run the jacobian taylor model constructor constructJacTM
  #
+ # Result:
+ #  - initial conditions are different. I should double check
+ #
  # Remark:
  # ForwardDiff stops working when using > 7 nested derivatives
  # taylor approximation of jacobian from constructJacTM() does not work with order > 6

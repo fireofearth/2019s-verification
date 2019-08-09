@@ -6,10 +6,10 @@
 #using ForwardDiff
 #using Logging
 
-#include("../ODEIntegration.jl")
+include("../Flowpipes.jl")
 
 include("ModalIntervalTest.jl")
-#include("ForwardDiffTest.jl")
-#include("AffineTest.jl")
-#include("AffineDiffTest.jl")
+include("ForwardDiffTest.jl")
+include("AffineTest.jl")
+include("AffineDiffTest.jl")
 include("ExtensionTest.jl")

@@ -55,7 +55,7 @@ plot!(p, r, t -> (z(t))[2], label="z₂(t)", lw=1, linecolor=:black)
 for i in 1:2
     ii = i == 1 ? "₁" : "₂"
     plot!(p, r, supiv[:,i], label="T$(ii)(t)", lw=1, linecolor=:red)
-    plot!(p, r, infiv[:,i], label="T$(ii)(t)", lw=1, linecolor=:red)
+    plot!(p, r, infiv[:,i], label="T$(ii)(t)", lw=1, linecolor=:blue)
 end
 
 p

@@ -47,8 +47,8 @@ pyplot()
 disp("done")
 
 # plot taylor approximation
-plot(r, uv, label="T₁(t)", linecolor=:red, lw=2, xaxis="t", yaxis="z(t)")
-plot!(r, lv, label="T₁(t)", linecolor=:red, lw=2)
+plot(r, uv, label="T₁(t)", linecolor=:red, lw=1, xaxis="t", yaxis="z(t)")
+plot!(r, lv, label="T₁(t)", linecolor=:red, lw=1)
 
 # plot analytical solution
 plot!(r, t -> (z(t))[1], label="z₁(t)", linecolor=:black, lw=1)

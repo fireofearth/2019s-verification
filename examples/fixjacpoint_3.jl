@@ -85,11 +85,11 @@ for i in 1:2, j in 1:2
     
     # plot analytical solution
     plot!(p[i, j], rₚ, t -> (Jz(t))[i, j], 
-          label="J(T)$ii$jj", linecolor=:red, lw=1)
+          label="J(z)$ii$jj", linecolor=:red, lw=1)
 
     # plot priori enclosures
     plot!(p[i, j], rₚ, [fixptinf.(rₚ), fixptsup.(rₚ)], 
-          label="J(z)$ii$jj", linecolor=:black, lw=1)
+          label="[J(z)$ii$jj]", linecolor=:black, lw=1)
 end
 
 plot(p[1,1], p[1,2], p[2,1], p[2,2])

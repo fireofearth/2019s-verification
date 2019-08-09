@@ -24,17 +24,23 @@ cT = constructTM(f; order=7, T=Real)
 # instance of taylor approximation
 T(t::Real) = cT(t, 0.0, z0, z0)
 
+# results
+disp("getting taylor approximations")
+r = range(0.0, stop=0.3, length=100)
+out = T.(r)
+disp("cleaning data")
+o1  = [o[1] for o in out]
+o2  = [o[2] for o in out]
+
 disp("importing Plots...")
 using Plots
 pyplot()
 disp("done")
 
-a = 0 .. 0.3
-r = range(inf(a), stop=sup(a), length=1000)
 # plot taylor approximation
-plot(r, t -> (T(t))[1], label="T₁(t)", lw=2, xaxis="t", yaxis="z(t)")
-plot!(t -> (T(t))[2], label="T₂(t)", lw=2)
+plot(r, o1, label="T₁(t)", lw=1, linecolor=:red, xaxis="t", yaxis="z(t)")
+plot!(r, o2, label="T₂(t)", lw=1, linecolor=:red)
 
 # plot analytical solution
-plot!(t -> (z(t))[1], label="z₁(t)", lw=5, markeralpha=0.3, linestyle=:dash)
-plot!(t -> (z(t))[2], label="z₂(t)", lw=5, markeralpha=0.3, linestyle=:dash)
+plot!(t -> (z(t))[1], label="z₁(t)", lw=1, linecolor=:black)
+plot!(t -> (z(t))[2], label="z₂(t)", lw=1, linecolor=:black)

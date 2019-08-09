@@ -3,18 +3,17 @@ module ModalIntervalArithmetic
 Functions are obtained from Modal interval analysis book.
 
 Sainz, M.A., Armengol, J., Calm, R., Herrero, P., Jorba, L. and Vehi, J., 2014. Modal interval analysis. Lecture Notes in Mathematics, 2091.
-
 =#
 
 import Base:
     +, -, *, /, ^,
     <, >, ==, !=, <=,
-    issubset,
-#    ∩, ∪, ⊆, ⊇, ∈,
+    issubset, isreal,
     min, max,
 	show, convert, promote_rule, isreal,
     mod, abs, abs2, real,
     sqrt, exp, log, sin, cos, tan, inv
+#    ∩, ∪, ⊆, ⊇, ∈,
 #    exp2in, exp10, log2, log10,
 #    asin, acos, atan,
 #    sinh, cosh, tanh, asinh, acosh, atanh, sinpi, cospi,
@@ -26,13 +25,14 @@ import Base:
 using IntervalArithmetic
 
 import IntervalArithmetic:
-    Interval, inf, sup, ⊂, ⊃
+    Interval, mid, inf, sup, ⊂, ⊃
 
 export
     ModalInterval, Interval,
     Predicate, PROPER, IMPROPER, REAL_NUMBER,
     mod, inf, sup, show, fields, dual, prop,
-	min, max,
+	min, max, mid,
+    isreal, isimproper, isproper,
 	one, zero,
     ==, issubset, ⊂, ⊃
     #+, -, *, /, inv
@@ -40,7 +40,9 @@ export
 # In Modal Intervals, proper ≡ ∃, improper ≡ ∀, and real are both ∀,∃
 @enum Predicate PROPER=1 REAL_NUMBER=0 IMPROPER=-1 
 
-# Modal Interval of dimension 1
+ #=
+ # Modal intervals extend classical intervals 
+=#
 struct ModalInterval{T<:Real} <: Number
     inf::T
     sup::T
@@ -51,26 +53,38 @@ ModalInterval{T}(a::Real) where {T<:Real} = ModalInterval{T}(a, a)
 ModalInterval(a::Real) = ModalInterval(a, a)
 ModalInterval(X::Interval) = ModalInterval(X.lo, X.hi)
 ModalInterval{T}(X::Interval) where {T<:Real} = ModalInterval{T}(X.lo, X.hi)
-ModalInterval(X::ModalInterval) = X
+ModalInterval{T}(X::ModalInterval) where {T<:Real} = ModalInterval{T}(X.inf, X.sup)
 
-# Getter functions
+# =================#
+# Getter functions #
+# =================#
+
 inf(X::ModalInterval) = X.inf
 sup(X::ModalInterval) = X.sup
 fields(X::ModalInterval) = inf(X), sup(X)
 min(X::ModalInterval)    = min(fields(X)...)
 max(X::ModalInterval)    = max(fields(X)...)
-mod(X::ModalInterval)    = inf(X) == sup(X) ? REAL_NUMBER : 
-    (inf(X) < sup(X) ? PROPER : IMPROPER)
+mid(X::ModalInterval)    = +(fields(X)...) / 2
 prop(X::ModalInterval)   = ModalInterval(min(X), max(X))
 dual(X::ModalInterval)   = ModalInterval(sup(X), inf(X))
+
+ #=
+ # Mod functions. Real intervals are proper and improper
+=#
+mod(X::ModalInterval)    = inf(X) == sup(X) ? REAL_NUMBER : 
+    (inf(X) < sup(X) ? PROPER : IMPROPER)
 isreal(X::ModalInterval) = mod(X) == REAL_NUMBER
+isimproper(X::ModalInterval) = mod(X) == IMPROPER || isreal(X)
+isproper(X::ModalInterval) = mod(X) == PROPER || isreal(X)
+isproper(v::Vector{<:ModalInterval}) = reduce(&, isproper.(v))
+isimproper(v::Vector{<:ModalInterval}) = reduce(&, isimproper.(v))
 
 # Modal inclusion / equality
 # In Modal Intervals, proper ≡ ∃, improper ≡ ∀, and real are both ∀,∃
 ==(A::ModalInterval, B::ModalInterval) = inf(A) == inf(B) && sup(B) == sup(A)
 ⊂(A::ModalInterval, B::ModalInterval) = inf(A) > inf(B) && sup(A) < sup(B)
 ⊃(A::ModalInterval, B::ModalInterval) = B ⊂ A
-# ⊆ = issubset
+# ⊆ = issubset # is defined
 issubset(A::ModalInterval, B::ModalInterval) = A ⊂ B || A == B
 
  #=
@@ -83,7 +97,7 @@ function Interval(X::ModalInterval)
     if(mod(X) == IMPROPER)
         throw(DomainError(X, "improper modal integrals cannot be converted to proper integrals; use Interval(Dual(X)) instead."))
     end
-    Interval(inf(X), sup(X))
+    Interval(fields(X)...)
 end
 
 # Promotion rules
@@ -146,6 +160,9 @@ function *(A::ModalInterval, B::ModalInterval)
     end
 end
 
+ #=
+ # Kaucher power
+=#
 function ^(A::ModalInterval, n::Int)
     (a₁, a₂) = fields(A)
     if(isodd(n))
@@ -163,6 +180,9 @@ function ^(A::ModalInterval, n::Int)
     end
 end
 
+ #=
+ # Kaucher inverse
+=#
 function inv(B::ModalInterval)
     if(0 ∈ prop(B))
         throw(DomainError(B, "proper interval must not contain zero"))
