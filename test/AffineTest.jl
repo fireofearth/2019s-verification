@@ -1,4 +1,4 @@
-using Test, Random
+using Test, Random, Dates
 using IntervalArithmetic
 using AffineArithmetic
 using Logging
@@ -29,6 +29,7 @@ using Logging
 Random.seed!(Dates.value(Dates.now()))
 MIN = -10^4
 MAX =  10^4
+U   = -1 .. 1
 
  #=
  # Comparable to `==` except we do not check indexes. Used for testing only.
@@ -74,7 +75,9 @@ sameForm(X::Matrix{Affine}, Y::Matrix{Affine}; tol::Float64=affineTOL) = sameFor
 @testset "affine arithmetic common" begin
     xl = rand(MIN .. MAX)
     xh = rand(xl .. MAX)
-    #vx = [rand(MIN .. MAX) for i in 10:rand(20:100)]
+    vlen = 10^3
+    v = [rand(U) for x in 1:vlen]
+    x  = rand(MIN .. MAX)
     
     @testset "convert" begin
         center = 3.14
@@ -119,6 +122,31 @@ sameForm(X::Matrix{Affine}, Y::Matrix{Affine}; tol::Float64=affineTOL) = sameFor
         @test a[0] ≈ (xl + xh) / 2
         @test a[1] ≈ (xh - xl) / 2
         @test length(a) == 1
+    end
+
+    @testset "array constructor" begin
+        resetLastAffineIndex()
+        Affine(xl, xh) * Affine(xl, xh)
+        a = Affine(x, v)
+        @test a[0] == x
+        @test length(a) == vlen
+        for i in 1:vlen
+            @test a[i] == v[i]
+            @test a.indexes[i] == i+3
+        end
+    end
+
+    @testset "set comparison" begin
+        a1 = Affine(rand(xl .. xh))
+        a2 = Affine(xl, xh)
+        a3 = Affine(xl - eps(), xh + eps())
+        @test a1 ⊆ a2 ⊆ a3
+        a1 = Affine(x, v)
+        a2 = Affine(x, [v; rand(U)])
+        @test a1 ⊆ a2
+        a2 = Affine(x, sort(v))
+        @test a1 ⊆ a2
+        @test a1 ⊇ a2
     end
 
     @testset "equality" begin

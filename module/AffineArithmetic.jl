@@ -33,7 +33,8 @@ import Base:
     isnan, isinf, isfinite,
     getindex, length, show, size, firstindex, lastindex,
     min, max,
-    <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2
+    <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2,
+    issubset, ⊆, ⊇
 
 using Logging
 
@@ -41,11 +42,12 @@ export
     zero, one, iszero, isone, convert, isapprox, promote_rule,
     isnan, isinf, isfinite,
     getindex, length, show, size, firstindex, lastindex,
-    <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2,
+    <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2, 
+    compact,
     AffineCoeff, AffineInd, AffineInt, Affine, affineTOL,
     Interval, interval, inf, sup,
-    rad, getMax, getMin, getAbsMax, getAbsMin, min, max,
-    compact
+    rad, min, max, absmin, absmax,
+    issubset, ⊆, ⊇
 
 # Used in test settings.
 export getLastAffineIndex, resetLastAffineIndex, ApproximationType
@@ -92,10 +94,12 @@ let lastAffineIndex::Int = 0
         lastAffineIndex = 0
     end
 
-     #=
-     # Similar to getDefault() in aaflib
-    =#
     global function getLastAffineIndex()
+        return lastAffineIndex
+    end
+
+    global function makeAffineIndex()
+        lastAffineIndex += 1
         return lastAffineIndex
     end
 
@@ -157,16 +161,21 @@ struct Affine <: Number
 end
 
  #=
- # Copy constructor, for unusual cases where we need them.
+ # Affine constructors for initialization
 =#
 Affine(a::Affine) = a
-
- #=
- # Constructor from intervals
-=#
 Affine(X::Interval) = Affine(AffineCoeff(mid(X)),
                              [AffineCoeff(radius(X))], addAffineIndex())
 Affine(x::Real) = Affine(AffineCoeff(x), Vector{AffineCoeff}(), Vector{AffineInd}())
+
+function Affine(x::Real, v::Vector{<:Real})
+    idx = Vector{AffineInd}(UndefInitializer(), length(v))
+    for i = 1:length(v)
+        idx[i] = makeAffineIndex()
+    end
+    return Affine(AffineCoeff(x), AffineCoeff.(v), idx)
+end
+
 function Affine(l::Real, h::Real)
     @assert l ≤ h   
     if(l == h)
@@ -264,16 +273,11 @@ rad(a::Affine)::AffineCoeff = sum(abs.(a.deviations))
 
   #=
   # Getters of the bounds of an Affine
-  #
-  # TODO: getMax, getMin deprecated
  =#
-getCenter(a::Affine) = a[0]
-getMax(a::Affine)::AffineCoeff = a[0] + rad(a)
-getMin(a::Affine)::AffineCoeff = a[0] - rad(a)
 max(a::Affine)::AffineCoeff = a[0] + rad(a)
 min(a::Affine)::AffineCoeff = a[0] - rad(a)
-getAbsMax(a::Affine)::AffineCoeff = max(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
-getAbsMin(a::Affine)::AffineCoeff  = min(abs(a[0] - rad(a)), abs(a[0] + rad(a)))
+absmax(a::Affine)::AffineCoeff = rad(a) |> x -> max(abs(a[0] - x), abs(a[0] + x))
+absmin(a::Affine)::AffineCoeff = rad(a) |> x -> min(abs(a[0] - x), abs(a[0] + x))
 
 Interval(a::Affine) = Interval(min(a), max(a))
 interval(a::Affine) = Interval(a)
@@ -300,6 +304,7 @@ lastindex(a::Affine)  = length(a) > 0 ? last(a.indexes) : 0
 <=(a::Affine, p::Affine) = (a[0] + rad(a)) <= (p[0] - rad(p))
 >(a::Affine,  p::Affine) = (a[0] - rad(a)) >  (p[0] + rad(p))
 >=(a::Affine, p::Affine) = (a[0] - rad(a)) >= (p[0] + rad(p))
+issubset(a::Affine,  p::Affine) = Interval(a) ⊆ Interval(p)
 
  #=
  # Equality

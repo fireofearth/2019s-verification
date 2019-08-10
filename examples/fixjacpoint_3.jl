@@ -11,7 +11,7 @@ using ForwardDiff
  #
  # fixJacPoint() can fail when τ is too large
 =#
-include("../ODEIntegration.jl")
+include("../Flowpipes.jl")
 
  #=
  # Conversion of a critically damped oscillator y⃮⃮̲'' + 16y' + 64y = 0
@@ -25,7 +25,7 @@ Jz(t::Real) = [exp(-8*t) + 8*t*exp(-8*t)  t*exp(-8*t);
                -64*t*exp(-8*t)            exp(-8*t) - 8*t*exp(-8*t)]
 
 # time variables
-τ = 0.04
+τ = 0.05
 d = 40
 r = 0.0:τ:(τ*d)
 τₚ = 0.002

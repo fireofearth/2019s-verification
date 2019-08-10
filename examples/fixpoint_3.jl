@@ -9,11 +9,11 @@ using ForwardDiff
  # Picard–Lindelöf theorem can show that F[z] = [z₀] + [0, τ]*[f]([z]) has a fixed point
  # if τ is small enough(?)
  #
- # τ = 0.05 gives really bad results, but τ ≤ 0.04 is OK.
+ # τ > 0.05 gives really bad results, but τ ≤ 0.04 is OK.
  #
- # fixpoint() can fail when τ is too large (i.e. τ = 0.1)
+ # fixpoint() can fail when τ is too large (i.e. τ = 0.06)
 =#
-include("../ODEIntegration.jl")
+include("../Flowpipes.jl")
 
  #=
  # Conversion of a critically damped oscillator y⃮⃮̲'' + 16y' + 64y = 0
@@ -25,7 +25,7 @@ f(z::Vector) = [0 1; -64 -16] * z
 z(t::Real) = exp(-8*t)*[1 + 28*t; 20 - 224*t]
 
 # time variables
-τ = 0.03
+τ = 0.05
 d = 20
 r = 0.0:τ:(τ*d)
 τₚ = τ / 10.0

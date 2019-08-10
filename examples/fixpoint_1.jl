@@ -9,9 +9,9 @@ using ForwardDiff
  # Picard–Lindelöf theorem can show that F[z] = [z₀] + [0, τ]*[f]([z]) has a fixed point
  # if τ is small enough(?)
  #
- # fixpoint() can fail when τ is too large (i.e. τ = 0.05)
+ # fixpoint() can fail when τ is too large (i.e. τ ≥ 0.09)
 =#
-include("../ODEIntegration.jl")
+include("../Flowpipes.jl")
 
 # problem z' = f(z) where f(z) = Az
 f(z::Vector) = [11 -25; 4 -9] * z
@@ -20,7 +20,7 @@ f(z::Vector) = [11 -25; 4 -9] * z
 z(t::Real) = exp(t)*[5; 2] + exp(t)*[1; 0] + 2*t*exp(t)*[5; 2]
 
 # time variables
-τ = 0.02
+τ = 0.08
 d = 40
 r = 0.0:τ:(τ*d)
 τₚ = 0.002

@@ -135,15 +135,14 @@ end
 
 function fixedPoint(f::Function, z0::Vector{Affine}, τ::Real)
     iter = 1
-    t    = Interval(0, τ)
-    x    = Interval(-1,  1)
+    t    = Affine(0, τ)
+    x    = Affine(-1,  1)
     zi   = z0
     Fzi  = z0 + t*f(z0)
 
-    #while(iter ≤ 1 || reduce(&, Fzi .⊈ zi))
     while(iter ≤ 1 || reduce(|, Fzi .⊈ zi))
         @assert iter < 50
-        #disp("$(iter) $(repr(Interval(zi[1]))) $(repr(Interval(zi[2])))")
+        disp("$(iter) $(repr(Interval(zi[1]))) $(repr(Interval(zi[2])))")
 
         if(iter > 25)
             β = 1.0
@@ -169,7 +168,7 @@ function fixedPoint(f::Function, z0::Vector{Affine}, τ::Real)
         iter += 1
     end
 
-    return Affine.(zi)
+    return zi
 end
 
 fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real) = fixedPoint(f, Affine.(z0), τ)
@@ -186,7 +185,7 @@ whereas fixedJacPoint uses
 [Jᵣ] = Jf([r])
 F[J] = J₀ + [0, τ] [Jᵣ] [J]
 =#
-function fixedJacPoint(f::Function, J₀::Matrix{<:Interval}, r::Vector{Affine}, τ::Real)
+function fixedJacPoint(f::Function, J₀::Matrix{Affine}, r::Vector{Affine}, τ::Real)
     # RINO:
     #Jac1_g_rough[j][k] = odeVAR_g.x[j][1].d(k);
     #fixpoint(J_rough, Jac1_g_rough, J, tau); output = J_rough
@@ -194,16 +193,15 @@ function fixedJacPoint(f::Function, J₀::Matrix{<:Interval}, r::Vector{Affine},
     #multMiMi(fJ0, Jac1_g_rough, y0); // fJ0 = Jac1_g_rough * y0
     #J1[i][j] = J0[i][j] + interval(0, tau) * fJ0[i][j].convert_int();
     iter = 1
-    t    = Interval(0, τ)
-    x    = Interval(-1,  1)
+    t    = Affine(0, τ)
+    x    = Affine(-1,  1)
     Jᵢ   = J₀
     Jᵣ = ForwardDiff.jacobian(f, r)
-    Jᵣ = Interval.(Jᵣ)
     FJᵢ = J₀ + t*Jᵣ*J₀
 
     while(iter ≤ 1 || reduce(|, FJᵢ .⊈ Jᵢ))
         @assert iter < 50
-        #disp("$(iter) $(repr(Interval(Jᵢ[1,1]))) $(repr(Interval(Jᵢ[1,2])))")
+        disp("$(iter) $(repr(Interval(Jᵢ[1,1]))) $(repr(Interval(Jᵢ[1,2])))")
 
         if(iter > 25)
             β = 1.0
@@ -229,11 +227,11 @@ function fixedJacPoint(f::Function, J₀::Matrix{<:Interval}, r::Vector{Affine},
         iter += 1
     end
 
-    return Affine.(Jᵢ)
+    return Jᵢ
 end
 
-fixedJacPoint(f::Function, J₀::Matrix{Affine}, 
-              r::Vector{Affine}, τ::Real) = fixedJacPoint(f, Interval.(J₀), r, τ)
+fixedJacPoint(f::Function, J₀::Matrix{<:Interval}, 
+              r::Vector{Affine}, τ::Real) = fixedJacPoint(f, Affine.(J₀), r, τ)
 
 function innerApproximate(z₀ⱼ::Vector{T}, Jⱼ::Matrix{T}, z₀::Vector{T}) where 
         T <: ModalInterval

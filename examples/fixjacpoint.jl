@@ -8,7 +8,7 @@ using ForwardDiff
  #
  # fixpoint() can fail when τ is too large
 =#
-include("../ODEIntegration.jl")
+include("../Flowpipes.jl")
 
 # problem z' = f(z) where f(z) = Az
 f(z::Vector) = [2 4; 4 2] * z
@@ -19,7 +19,7 @@ Jz(t::Real) = [0.5*(exp(6*t) + exp(-2*t)) 0.5*(exp(6*t) - exp(-2*t));
                0.5*(exp(6*t) - exp(-2*t)) 0.5*(exp(6*t) + exp(-2*t))]
 
 # time variables
-τ = 0.02
+τ = 0.05
 d = 40
 r = 0.0:τ:(τ*d)
 τₚ = 0.002
