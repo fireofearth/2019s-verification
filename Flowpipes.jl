@@ -133,7 +133,7 @@ end
  # TODO: convert intervals to affines and see whether there is a difference
 =#
 
-function fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real)
+function fixedPoint(f::Function, z0::Vector{Affine}, τ::Real)
     iter = 1
     t    = Interval(0, τ)
     x    = Interval(-1,  1)
@@ -172,7 +172,7 @@ function fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real)
     return Affine.(zi)
 end
 
-fixedPoint(f::Function, z0::Vector{Affine}, τ::Real) = fixedPoint(f, Interval.(z0), τ)
+fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real) = fixedPoint(f, Affine.(z0), τ)
 
  #=
  # Compute a priori enclosure for [Rⱼ₊₁]

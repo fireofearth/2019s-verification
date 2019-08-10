@@ -26,6 +26,10 @@ using Logging
  # using ForwardDiff. Now using `sameForm()` instead of `==`, and compact()
 =#
 
+Random.seed!(Dates.value(Dates.now()))
+MIN = -10^4
+MAX =  10^4
+
  #=
  # Comparable to `==` except we do not check indexes. Used for testing only.
 =#
@@ -68,6 +72,9 @@ sameForm(X::Matrix{Affine}, Y::Matrix{Affine}; tol::Float64=affineTOL) = sameFor
  # All functionality except for elementary functions and binary operations
 =#
 @testset "affine arithmetic common" begin
+    xl = rand(MIN .. MAX)
+    xh = rand(xl .. MAX)
+    #vx = [rand(MIN .. MAX) for i in 10:rand(20:100)]
     
     @testset "convert" begin
         center = 3.14
@@ -101,6 +108,17 @@ sameForm(X::Matrix{Affine}, Y::Matrix{Affine}; tol::Float64=affineTOL) = sameFor
         @test rad(a1) == 2.0 + 1.0 + 5.0 + 4.0
         @test length(a1) == 4
         @test Interval(a1) == Interval(a1[0] - rad(a1), a1[0] + rad(a1))
+    end
+
+    @testset "range constructors" begin
+        a = Affine(xl, xh)
+        @test a[0] ≈ (xl + xh) / 2
+        @test a[1] ≈ (xh - xl) / 2
+        @test length(a) == 1
+        a = Affine(xl .. xh)
+        @test a[0] ≈ (xl + xh) / 2
+        @test a[1] ≈ (xh - xl) / 2
+        @test length(a) == 1
     end
 
     @testset "equality" begin

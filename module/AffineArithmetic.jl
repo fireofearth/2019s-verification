@@ -13,8 +13,9 @@ module AffineArithmetic
  #
  # TODO: finish documentation
  # TODO: complete + test support for ForwardDiff
- #
- #
+ # TODO: enable iterator
+ # TODO: make `Affine <: Real` into `Affine{T<:Real} <: Number`; do package type support
+ # the Julian way; support for T<:Real coefficients
  #
  # TODO: aaflib trig. functions sin, cos; requires me to know
  # what implementation changes Goubault/Putot made for sin, cos
@@ -66,6 +67,7 @@ affineTOL = TOL
  #=
  # Type declarations
 =#
+Float       = Float64
 AffineCoeff = Float64 # type for coefficients and constants
 AffineInt   = Int64 # type for integers
 AffineInd   = Int64 # type for indexes
@@ -82,7 +84,7 @@ debug() = print("DEBUG\n")
  # - force setLastAffineIndex to call whenever a new Affine instance is created.
  #
  # TODO: test methods
- # TODO: turn this into a decorator/macro and force calls
+ # TODO: turn this into a decorator/macro and force calls?
 =#
 let lastAffineIndex::Int = 0
 
@@ -136,9 +138,6 @@ end
  # Invariants:
  # - Affine indexes are always in sorted order from lowest to highest
  # - elts in Affine indexes are unique
- #
- # TODO: enable iterator, indexing
- # TODO: make `Affine <: Real` into `Affine{T<:Real} <: Number`
 =#
 struct Affine <: Number
     cvalue::AffineCoeff  # central value 
@@ -165,28 +164,35 @@ Affine(a::Affine) = a
  #=
  # Constructor from intervals
 =#
-Affine(iv::Interval) = Affine(mid(iv), [radius(iv)], addAffineIndex())
-
- #=
- # Creates an Affine without deviations.
-=#
-Affine(v0::AffineCoeff = 0.0) = Affine(v0, Vector{AffineCoeff}(), Vector{AffineInd}())
-Affine(v0::AffineInt) = Affine(AffineCoeff(v0), Vector{AffineCoeff}(), Vector{AffineInd}())
-Affine(v0::Bool)      = Affine(AffineCoeff(v0), Vector{AffineCoeff}(), Vector{AffineInd}())
+Affine(X::Interval) = Affine(AffineCoeff(mid(X)),
+                             [AffineCoeff(radius(X))], addAffineIndex())
+Affine(x::Real) = Affine(AffineCoeff(x), Vector{AffineCoeff}(), Vector{AffineInd}())
+function Affine(l::Real, h::Real)
+    @assert l ≤ h   
+    if(l == h)
+        return Affine(l)
+    else
+        return Affine(AffineCoeff((l + h) /2), 
+                      [AffineCoeff((h - l) / 2)], addAffineIndex())
+    end
+end
+Affine(v0::Bool) = Affine(AffineCoeff(v0), Vector{AffineCoeff}(), Vector{AffineInd}())
 
  #=
  # Constructor that assigns new center to Affine
+ # used in affine operations
 =#
 Affine(a::Affine, cst::AffineCoeff) = Affine(cst, a.deviations, a.indexes)
 
  #=
  # Constructor that assigns new center, and diff to Affine. We assume indexes unchanged
+ # used in affine operations
 =#
 Affine(a::Affine, cst::AffineCoeff, dev::Vector{AffineCoeff}) = Affine(cst, dev, a.indexes)
 
 function getindex(a::Affine, ind::Int)::AffineCoeff
     if(ind < 0 || ind > length(a.deviations))
-        return 0.0
+        return AffineCoeff(0.0)
     elseif(ind == 0)
         return a.cvalue
     else
@@ -213,7 +219,7 @@ end
 
  #=
  # Obtain the string representation of an affine form
- # TESTING ONLY
+ # TODO: TESTING ONLY delete when done.
 =#
 function reprit(center, deviation, indexes)
     s = "$(center)"
