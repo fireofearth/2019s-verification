@@ -1,4 +1,5 @@
 module ModalIntervalArithmetic
+
 #=
 Functions are obtained from Modal interval analysis book.
 
@@ -16,7 +17,6 @@ import Base:
 #    ∩, ∪, ⊆, ⊇, ∈,
 #    exp2in, exp10, log2, log10,
 #    asin, acos, atan,
-#    sinh, cosh, tanh, asinh, acosh, atanh, sinpi, cospi,
 #    union, intersect, isempty,
 #    eltype, size,
 #    BigFloat, float, widen, big,
@@ -34,8 +34,8 @@ export
 	min, max, mid,
     isreal, isimproper, isproper,
 	one, zero,
-    ==, issubset, ⊂, ⊃
-    #+, -, *, /, inv
+    ==, issubset, ⊂, ⊃,
+    +, -, *, /, inv
 
 # In Modal Intervals, proper ≡ ∃, improper ≡ ∀, and real are both ∀,∃
 @enum Predicate PROPER=1 REAL_NUMBER=0 IMPROPER=-1 

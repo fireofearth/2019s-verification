@@ -11,16 +11,16 @@ using IntervalArithmetic
 include("../Flowpipes.jl")
 
  #=
- # Brusselator problem
- # z' = f(z)
+ # Conversion of a critically damped oscillator y⃮⃮̲'' + 16y' + 64y = 0
+ # to sytem of autonomous linear equations z' = A * z
 =#
-f(z::Vector) = [1.0 - 2.5*z[1] + z[2]*z[1]^2; 1.5*z[1] - z[2]*z[1]^2]
-#
+f(z::Vector) = [0 1; -64 -16] * z
+
 # initial conditions
 # tₙ = 0.3. τ = 0.05 -> 6 steps
-tspan = (0.0, 0.6) # tₙ = 10.0
-τ     = 0.05
-z₀ = [0.9 .. 1.0, 0.0 .. 0.1]
+tspan = (0.0, 0.6)
+τ     = 0.03
+z₀ = [1.0 ± 0.05, 10.0 ± 0.05]
 
 disp("getting inner and outer approximations")
 st, sz, sia = approximate(f, tspan, τ, z₀)
