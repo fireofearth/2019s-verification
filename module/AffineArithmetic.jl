@@ -32,7 +32,7 @@ import Base:
     zero, one, iszero, isone, convert, isapprox, promote_rule,
     isnan, isinf, isfinite,
     getindex, length, show, size, firstindex, lastindex,
-    min, max,
+    min, max, conj,
     <, <=, >, >=, ==, +, -, *, /, inv, ^, sin, cos, abs2,
     issubset, ⊆, ⊇
 
@@ -46,7 +46,7 @@ export
     compact,
     AffineCoeff, AffineInd, AffineInt, Affine, affineTOL,
     Interval, interval, inf, sup,
-    rad, min, max, absmin, absmax,
+    rad, min, max, conj, absmin, absmax,
     issubset, ⊆, ⊇
 
 # Used in test settings.
@@ -310,6 +310,8 @@ issubset(a::Affine,  p::Affine) = Interval(a) ⊆ Interval(p)
  # Equality
  # Specification: affine equality compares cvalues, and deviations up to
  # some tolerance which defaults to TOL
+ #
+ # TODO: simplify?
 =#
 function equalityInternal(a::Affine, p::Affine; tol::Float64=TOL)
     if(length(a) != length(p))
@@ -355,6 +357,8 @@ end
 function isapprox(a::Affine, p::Affine; tol::Float64=TOL)
     return equalityInternal(a, p; tol=tol)
 end
+
+conj(a::Affine) = a
 
 +(a::Affine, cst::AffineCoeff)::Affine = Affine(a, a[0] + cst)
 -(a::Affine, cst::AffineCoeff)::Affine = Affine(a, a[0] - cst)
@@ -418,7 +422,7 @@ end
 
 
 +(a::Affine) = Affine(a)
--(a::Affine) = Affine(a, -a[0], -1 * a.deviations)
+-(a::Affine) = Affine(a, -a[0], -a.deviations)
 
  #=
  # All non-affine operations (*,/,inv,^,sin,cos) default to Chebyshev approximation.
@@ -456,6 +460,7 @@ function *(a::Affine, p::Affine)::Affine
     elseif(length(a) == 0)
         return a[0] * p
     end
+
     # create new index with length = length(a.indexes) + length(p.indexes) + 1
     adjDeviation2 = 0.0
     adjCenter2    = 0.0
@@ -474,8 +479,8 @@ function *(a::Affine, p::Affine)::Affine
             devt[ii] = a[ia] * p[0]
         else
             devt[ii] = a[ia] * p[0] + a[0] * p[ip]
-            adjDeviation2 = abs(a[ia] * p[ip])
-            adjCenter2    = a[ia] * p[ip]
+            adjDeviation2 += abs(a[ia] * p[ip])
+            adjCenter2    += a[ia] * p[ip]
         end
     end
     devt[lindt] = rad(a)*rad(p) - 0.5*adjDeviation2
@@ -566,9 +571,19 @@ end
 /(a::Affine, p::Affine)::Affine = a * inv(p)
 
  #=
- # Obtain a^n where a is Affine and n is an integer
- #
- # TODO: documentation
+Obtain a^n where a is Affine and n is an integer
+
+1. let a = x₀ - ∑ᴺᵢ|xᵢ|, and b = x₀ + ∑ᴺᵢ|xᵢ|
+
+2. let α = (b^n - a^n) / (b - a) be the slope of the line l(x)
+
+3. solve for u ∈ (a, b) such that n*u^(n - 1) = α
+u = ± |α / n|^(1/(n - 1))
+
+
+4. ζ = ½(f(u) + l(u)) - αu
+5. δ = ½|f(u) - l(u)|
+
 =#
 function ^(p::Affine, n::Int)
     if(length(p) == 0)

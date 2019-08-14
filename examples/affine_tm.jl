@@ -14,7 +14,7 @@ using ForwardDiff
  # taylor approximation from constructTM() does not work with order > 7
  # Gives the correct output with order = 7
 =#
-include("../ODEIntegration.jl")
+include("../Flowpipes.jl")
 
 # problem z' = f(z) where f(z) = Az
 f(z::Vector) = [2 4; 4 2] * z

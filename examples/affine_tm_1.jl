@@ -6,7 +6,7 @@ using ForwardDiff
  # Run taylor model constructor constructTM, and use affine forms
  # as initial conditions
  #
- # - order=4: affine z₀ bounds analytical solution up to t=2
+ # - order=4: affine z₀ bounds analytical solution up to t=0.2
  # - order=5: affine z₀ bounds analytical solution up to t=0.4
  #
  # Remark:
@@ -14,7 +14,7 @@ using ForwardDiff
  # taylor approximation from constructTM() does not work with order > 7
  # Gives the correct output with order = 7
 =#
-include("../ODEIntegration.jl")
+include("../Flowpipes.jl")
 
 # problem z' = f(z) where f(z) = Az
 f(z::Vector) = [11 -25; 4 -9] * z
@@ -22,13 +22,13 @@ f(z::Vector) = [11 -25; 4 -9] * z
 # initial conditions
 z0 = [Affine(6.0 ± 0.1); Affine(2.0 ± 0.1)]
 τ = 0.05
-d = 60
+d = 20
 
 # analytical solution
 z(t::Real) = exp(t)*[5; 2] + exp(t)*[1; 0] + 2*t*exp(t)*[5; 2]
 
 # constructed taylor approximation
-cT = constructTM(f; order=4)
+cT = constructTM(f; order=5)
 # instance of taylor approximation
 T(t::Real) = cT(t, 0.0, z0, z0)
 
@@ -54,8 +54,9 @@ plot!(p, r, t -> (z(t))[2], label="z₂(t)", lw=1, linecolor=:black)
 # plot analytical solution
 for i in 1:2
     ii = i == 1 ? "₁" : "₂"
-    plot!(p, r, supiv[:,i], label="T$(ii)(t)", lw=1, linecolor=:red)
-    plot!(p, r, infiv[:,i], label="T$(ii)(t)", lw=1, linecolor=:blue)
+    clr = i == 1 ? (:red) : (:blue)
+    plot!(p, r, supiv[:,i], label="T$(ii)(t)", lw=1, linecolor=clr)
+    plot!(p, r, infiv[:,i], label="T$(ii)(t)", lw=1, linecolor=clr)
 end
 
 p
