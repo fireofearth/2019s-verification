@@ -1572,12 +1572,12 @@ git push origin master</code></pre>
 <div id="automatic-differentiation" class="section level2">
 <h2>Automatic Differentiation</h2>
 <p>The Julia package ForwardDiff uses dual numbers for automatic differentiation. The dual number <span class="math inline">\(x + \epsilon 1\)</span> can be used to simultaneously evaluate a function at <span class="math inline">\(x\)</span> and find the derivative of the function at <span class="math inline">\(x\)</span>. Similarly hyperdual numbers can obtain higher derivatives at <span class="math inline">\(x\)</span>.</p>
-<p>Dual numbers have the form <span class="math inline">\(x = a +\epsilon b \in \Reals[\epsilon]\)</span>. It has two coordinates similar to complex numbers except <span class="math inline">\(\epsilon^2 = 0\)</span> (<span class="math inline">\(\epsilon\)</span> is nilpotent). It’s inverse is <span class="math inline">\(\inv{x} = \frac{1}{a} + \epsilon \frac{-b}{a^2}\)</span>. If we want to simultaneously find the derivative <span class="math inline">\(f'(a)\)</span> of a function <span class="math inline">\(f : \Reals \ra \Reals\)</span> at <span class="math inline">\(a \in \Reals\)</span> and <span class="math inline">\(f(a)\)</span>, we just need to pass <span class="math inline">\(x = a + \epsilon 1\)</span>.</p>
+<p>Dual numbers have the form <span class="math inline">\(x = a +\epsilon b \in \mathbb R[\epsilon]\)</span>. It has two coordinates similar to complex numbers except <span class="math inline">\(\epsilon^2 = 0\)</span> (<span class="math inline">\(\epsilon\)</span> is nilpotent). It’s inverse is <span class="math inline">\(^{-1}{x} = \frac{1}{a} + \epsilon \frac{-b}{a^2}\)</span>. If we want to simultaneously find the derivative <span class="math inline">\(f'(a)\)</span> of a function <span class="math inline">\(f : \mathbb R\rightarrow\mathbb R\)</span> at <span class="math inline">\(a \in \mathbb R\)</span> and <span class="math inline">\(f(a)\)</span>, we just need to pass <span class="math inline">\(x = a + \epsilon 1\)</span>.</p>
 <p><span class="math inline">\(f(x) = x + b\)</span>: <span class="math inline">\(f(a + \epsilon 1) = (a + b) + \epsilon 1\)</span></p>
 <p><span class="math inline">\(f(x) = x^n\)</span>: <span class="math inline">\(f(a + \epsilon 1) = (a + \epsilon 1)^n\)</span>: using the rule <span class="math inline">\((a + b)^n = a^n + {n \choose 1}a^{n-1}b + {n \choose 2}a^{n-2}b^2 + \cdots + {n \choose n-1}ab^{n-1} + b^n = \sum^n_{i = 0} a^{n-i} b^i\)</span> we obtain <span class="math inline">\(a^n + \epsilon {n \choose 1}a^{n-1} + \epsilon^2 {n \choose 2}a^{n-2} + \epsilon^3 {n \choose 3}a^{n-3} + \cdots + \epsilon^n\)</span> and since <span class="math inline">\(\epsilon^2 = \epsilon^3 = \epsilon^4 = 0\)</span> we get <span class="math inline">\(a^n + \epsilon n a^{n-1}\)</span>.</p>
 <p><span class="math inline">\(f(x) = \frac{1}{x}\)</span>: from the inverse we know <span class="math inline">\(f(a + \epsilon) = \frac{1}{a + \epsilon} = \frac{1}{x} + \epsilon \frac{-1}{x^2}\)</span>.</p>
-<p><span class="math inline">\(f(x) = \sqrt{x}\)</span>: notice <span class="math inline">\((a + \epsilon b)^2 = a^2 + \epsilon 2ab = c + \epsilon d\)</span> gives us <span class="math inline">\(a = \pm\sqrt{c}\)</span> and <span class="math inline">\(b = \pm\frac{d}{2\sqrt{c}}\)</span> provided <span class="math inline">\(c &gt; 0\)</span> (<span class="math inline">\(d \in\Reals\)</span>). Therefore by choosing <span class="math inline">\(a = \sqrt{c}\)</span> we have <span class="math inline">\(\sqrt{x + \epsilon} = \sqrt{x} + \epsilon \frac{1}{2\sqrt{x}}\)</span>.</p>
-<p>Similarly, <span class="math inline">\(f(x) = \sqrt[n]{x}\)</span>: notice <span class="math inline">\((a + \epsilon b)^n = a^n + \epsilon na^{n-1}b = c + \epsilon d\)</span> gives us <span class="math inline">\(a := \sqrt[n]{c}\)</span> and <span class="math inline">\(b = \frac{d}{nc^{(n-1)/n}}\)</span> provided <span class="math inline">\(c &gt; 0\)</span> (<span class="math inline">\(d \in\Reals\)</span>). Therefore <span class="math inline">\(\sqrt[n]{x + \epsilon} = \sqrt[n]{x} + \frac{1}{n x^{(n-1)/n}}\)</span>.</p>
+<p><span class="math inline">\(f(x) = \sqrt{x}\)</span>: notice <span class="math inline">\((a + \epsilon b)^2 = a^2 + \epsilon 2ab = c + \epsilon d\)</span> gives us <span class="math inline">\(a = \pm\sqrt{c}\)</span> and <span class="math inline">\(b = \pm\frac{d}{2\sqrt{c}}\)</span> provided <span class="math inline">\(c &gt; 0\)</span> (<span class="math inline">\(d \in\mathbb R\)</span>). Therefore by choosing <span class="math inline">\(a = \sqrt{c}\)</span> we have <span class="math inline">\(\sqrt{x + \epsilon} = \sqrt{x} + \epsilon \frac{1}{2\sqrt{x}}\)</span>.</p>
+<p>Similarly, <span class="math inline">\(f(x) = \sqrt[n]{x}\)</span>: notice <span class="math inline">\((a + \epsilon b)^n = a^n + \epsilon na^{n-1}b = c + \epsilon d\)</span> gives us <span class="math inline">\(a := \sqrt[n]{c}\)</span> and <span class="math inline">\(b = \frac{d}{nc^{(n-1)/n}}\)</span> provided <span class="math inline">\(c &gt; 0\)</span> (<span class="math inline">\(d \in\mathbb R\)</span>). Therefore <span class="math inline">\(\sqrt[n]{x + \epsilon} = \sqrt[n]{x} + \frac{1}{n x^{(n-1)/n}}\)</span>.</p>
 <p><a href="https://blog.demofox.org/2014/12/30/dual-numbers-automatic-differentiation" class="uri">https://blog.demofox.org/2014/12/30/dual-numbers-automatic-differentiation</a> <a href="https://en.wikipedia.org/wiki/Dual_number" class="uri">https://en.wikipedia.org/wiki/Dual_number</a></p>
 </div>
 <div id="original-implementation" class="section level2">
@@ -1812,13 +1812,23 @@ Qt version (for plots): 5</p>
 </div>
 <div id="procedure" class="section level3">
 <h3>Procedure</h3>
-<p>I am only implementing RINO for ODE functions, and am skipping DDE for now.</p>
-<p>TODO: figure out implementation</p>
-<p>Step 2: preallocates the J, x, xCenter</p>
-<p>Step 3: loop in solveODE</p>
-<p>Step 3.2: obtain the center of the inputs, and eps</p>
-<p>Step 3.3: set initial values for J, x, xCenter</p>
-<p>Step 3.4 set initial ODE system</p>
+<p>Discretize <span class="math inline">\(t_0 &lt; t_1 &lt; \cdots &lt; t_j &lt; t_{j+1} = t_j + \tau &lt; \cdots &lt; t_n\)</span><br />
+Outer approximation <span class="math inline">\([\boldsymbol{x}^{(0)}]\)</span> (given)<br />
+Outer approximation <span class="math inline">\([J^{(0)}] := I\)</span><br />
+Outer approximate center of <span class="math inline">\([\boldsymbol{x}^{(0)}]\)</span> as <span class="math inline">\([\tilde{\boldsymbol{x}}^{(0)}] := \text{mid}{\left[\boldsymbol{x}^{(0)}\right]}\)</span><br />
+Inner approximation <span class="math inline">\(]\boldsymbol{x}^{(0)}[ = [\boldsymbol{x}^{(0)}]\)</span></p>
+<p>For each <span class="math inline">\(j = 0,\ldots,n\)</span></p>
+<ol style="list-style-type: decimal">
+<li>get priori enclosure of solutions and Jacobians of solutions over <span class="math inline">\(t \in [t_j, t_{j+1}]\)</span>
+<ul>
+<li><span class="math inline">\(\left[\boldsymbol{r}^{(j+1)}\right]\)</span> of ; <span class="math inline">\(\boldsymbol{x}(t, t_j, \left[\boldsymbol{x}^{(j)}\right])\)</span></li>
+<li><span class="math inline">\(\left[\tilde{\boldsymbol{r}}^{(j+1)}\right]\)</span> of ; <span class="math inline">\(\boldsymbol{x}(t, t_j, \left[\tilde{\boldsymbol{x}}^{(j)}\right])\)</span></li>
+<li><span class="math inline">\(\left[R^{(j+1)}\right]\)</span> of ; <span class="math inline">\(J(t, t_j, \left[\boldsymbol{x}^{(j)}\right]) = \text{Jac}_{\boldsymbol{x}^{(j)}} \boldsymbol{x}(t, t_j, \left[\boldsymbol{x}^{(j)}\right])\)</span></li>
+</ul></li>
+<li><p>get Taylor approximations <span class="math inline">\([\boldsymbol{x}](t_{j+1}, t_j, \left[\boldsymbol{x}^{(j)}\right])\)</span>, <span class="math inline">\([\boldsymbol{x}](t_{j+1}, t_j, \left[\tilde{\boldsymbol{x}}^{(j)}\right])\)</span> and <span class="math inline">\([J](t_{j+1}, t_j, \left[\boldsymbol{x}^{(j)}\right])\)</span></p></li>
+<li><p>deduce an inner approximation <span class="math inline">\(]\boldsymbol{x}[(t_{j+1}, t_j, \left[\boldsymbol{x}^{(j)}\right])\)</span></p></li>
+<li><p>set <span class="math inline">\(]\boldsymbol{x}^{(j+1)}[\)</span>, <span class="math inline">\(\left[\boldsymbol{x}^{(j+1)}\right], \left[\tilde{\boldsymbol{x}}^{(j+1)}\right]\)</span> and <span class="math inline">\(\left[J^{(j+1)}\right]\)</span></p></li>
+</ol>
 </div>
 </div>
 

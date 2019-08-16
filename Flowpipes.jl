@@ -177,22 +177,15 @@ fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real) = fixedPoint(f, Affine
  #=
  # Compute a priori enclosure for [Rⱼ₊₁]
  #
- # TODO: not clear about implementation
 
 fixedPoint uses
 L[z] = z₀ + [0, τ] [f]([z])
 
 whereas fixedJacPoint uses
 [Jᵣ] = Jf([r])
-F[J] = J₀ + [0, τ] [Jᵣ] [J]
+F[J] = J₀ + [0, τ] [f]([r]) [J]
 =#
 function fixedJacPoint(f::Function, J₀::Matrix{Affine}, r::Vector{Affine}, τ::Real)
-    # RINO:
-    #Jac1_g_rough[j][k] = odeVAR_g.x[j][1].d(k);
-    #fixpoint(J_rough, Jac1_g_rough, J, tau); output = J_rough
-    #void fixpoint(vector<vector<AAF>> &y0, vector<vector<AAF>> &Jac1_g_rough, vector<vector<AAF>> &J0, double tau)
-    #multMiMi(fJ0, Jac1_g_rough, y0); // fJ0 = Jac1_g_rough * y0
-    #J1[i][j] = J0[i][j] + interval(0, tau) * fJ0[i][j].convert_int();
     iter = 1
     t    = Affine(0, τ)
     x    = Affine(-1,  1)
@@ -298,7 +291,7 @@ function approximate(f::Function, tspan::NTuple{2,<:Real}, τ::Real,
     # preallocate array to store tⱼ, zⱼ, iaⱼ
     st  = [tⱼ]
     sz  = z₀
-    sia = fill(NaN, length(z₀))
+    sia = z₀
 
     while(tⱼ < tₙ)
         disp("iteration = $(iter); tⱼ = $(tⱼ)")

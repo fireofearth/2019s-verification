@@ -25,7 +25,7 @@ Jz(t::Real) = [exp(-8*t) + 8*t*exp(-8*t)  t*exp(-8*t);
                -64*t*exp(-8*t)            exp(-8*t) - 8*t*exp(-8*t)]
 
 # time variables
-τ = 0.05
+τ = 0.03
 d = 40
 r = 0.0:τ:(τ*d)
 τₚ = 0.002

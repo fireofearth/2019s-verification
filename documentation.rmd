@@ -1,5 +1,14 @@
 ---
 title: "Documentation"
+header-includes:
+- \usepackage{amsmath}
+- \usepackage{amsthm}
+- \usepackage{amssymb}
+- \usepackage{bm}
+- \usepackage{bbm}
+- \usepackage{ulem}
+- \usepackage{fancyvrb}
+- \include{scripts/notation}
 output:
   pdf_document:
     pandoc_args: ["--lua-filter=scripts/task-list.lua"]
@@ -7,26 +16,16 @@ output:
     toc: true
     toc_float: true
     toc_depth: 3
-header-includes:
-- \usepackage{amsmath}
-- \input{./scripts/notation}
 ---
 
 These notes are made using R Markdown.
 
 ## Verification Study
 
-Two remote repositories:
-
-```
-git remote set-url origin https://github.com/fireofearth/2019s-verification
-git remote set-url origin https://bitbucket.org/ian_mitchell/julia-intervals
-git push origin master
-```
-
-*20190617*
-
-We have the software that was used for Goubault+Putot's last 3 years of research: Robust INner and Outer Approximated Reachability (RINO) [here](https://github.com/cosynus-lix/RINO) as well as the dependencies[FILIB++](http://www2.math.uni-wuppertal.de/wrswt/software/filib.html) for interval computations, and [FADBAD](http://www.fadbad.com/fadbad.html > for automatic diff)
+We have the software that was used for Goubault+Putot's last 3 years of research: Robust INner and Outer Approximated Reachability ([RINO](https://github.com/cosynus-lix/RINO))
+as well as the dependencies [FILIB++](http://www2.math.uni-wuppertal.de/wrswt/software/filib.html) for interval computations, 
+[FADBAD](http://www.fadbad.com/fadbad.html) for automatic differentiation
+and [aaflib](http://aaflib.sourceforge.net/) for affine arithmetic.
 
 Additionally for Julia (all required components to reproduce RINO for Julia):
 - automatic diff <https://github.com/JuliaDiff/>
@@ -379,16 +378,25 @@ This makes it pretty challenging to test ForwardDiff on affine forms. Since affi
 
 ### Procedure
 
-I am only implementing RINO for ODE functions, and am skipping DDE for now.
+Discretize $t_0 < t_1 < \cdots < t_j < t_{j+1} = t_j + \tau < \cdots < t_n$  
+Outer approximation $[\iterx{0}]$ (given)  
+Outer approximation $[\iterJ{0}] := I$  
+Outer approximate center of $[\iterx{0}]$ as $[\itertx{0}] := \text{mid}{\intervalbox{0}}$  
+Inner approximation $]\iterx{0}[ = [\iterx{0}]$  
 
-TODO: figure out implementation
+For each $j = 0,\ldots,n$  
 
-Step 2: preallocates the J, x, xCenter
+1. get priori enclosure of solutions and Jacobians of solutions over $t \in [t_j, t_{j+1}]$
+    + $\enclosure{j+1}$ of \; $\boldsymbol{x}(t, t_j, \intervalbox{j})$
+    + $\tenclosure{j+1}$ of \; $\boldsymbol{x}(t, t_j, \tintervalbox{j})$
+    + $\Enclosure{j+1}$ of \; $J(t, t_j, \intervalbox{j}) = \Jac{\iterx{j}} \boldsymbol{x}(t, t_j, \intervalbox{j})$
 
-Step 3: loop in solveODE
+2. get Taylor approximations $[\boldsymbol{x}](t_{j+1}, t_j, \intervalbox{j})$, $[\boldsymbol{x}](t_{j+1}, t_j, \tintervalbox{j})$ and $[J](t_{j+1}, t_j, \intervalbox{j})$
 
-Step 3.2: obtain the center of the inputs, and eps
-    
-Step 3.3: set initial values for J, x, xCenter
+3. deduce an inner approximation $]\boldsymbol{x}[(t_{j+1}, t_j, \intervalbox{j})$
 
-Step 3.4 set initial ODE system
+4. set $]\iterx{j+1}[$, $\intervalbox{j+1}, \tintervalbox{j+1}$ and $\Intervalbox{j+1}$
+
+
+
+
