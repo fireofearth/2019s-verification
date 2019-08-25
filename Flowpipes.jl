@@ -254,15 +254,15 @@ innerApproximate(z₀ⱼ::Vector{Affine}, Jⱼ::Matrix{Affine},
  # - [order]: order of taylor approximation
  #
  # Output: a tuple containing in order
- # - st:  set of 
- # - sz:  s
- # - sia: set intervals containing of inner approximationss, or NaN
- #
- # Specifications:
- # - initializes variables
+ # - st:  vector of evenly τ spaced points of time from t₀ to tₙ
+ # - sz:  vector of intervals representing outer approximations at each time point.
+ #        sz[i] is the outer approximation at st[i]
+ # - sia: vector of intervals representing of inner approximationss, or NaN if does not exist
+ #        at each time point. sia[i] is the inner approimxation/NaN at st[i]
  #
  # TODO: preallocate arrays st, sz, sia
 =#
+
 function approximate(f::Function, tspan::NTuple{2,<:Real}, τ::Real,
                   z₀::Vector{<:Interval}; order::Int=4)
 
