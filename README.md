@@ -3,15 +3,15 @@
 In the conference HSCC'17-19, Goubault and Putot presented a series of papers listed in the [related works section](#related-works) and an accompanying demonstration software called [RINO](#related-software).
 This project uses RINO to create a numerical solver that computes inner and outer approximations of flowpipes for ODEs. Currently it only implements the algorithm present in HSCC'17.
 
-# Dependencies
+## Main Dependencies
 
 A modified version of JuliaDiff/[ForwardDiff.jl](https://github.com/fireofearth/ForwardDiff.jl)  
 [AffineArithmetic.jl](https://github.com/fireofearth/AffineArithmetic.jl)  
 [ModalIntervalArithmetic.jl](https://github.com/fireofearth/ModalIntervalArithmetic.jl)  
-IntervalArithmetic  
-TaylorSeries  
+[IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl)  
+[TaylorSeries.jl](https://github.com/JuliaDiff/TaylorSeries.jl) used in some example code  
 
-# Installation
+## Installation
 
 1. Assuming Julia is already installed, install `IntervalArithmetic` and `TaylorSeries` from official repositories. 
 2. Install ForwardDiff dependencies `DiffResults`, `DiffRules`, `StaticArrays`, `SpecialFunctions`, `NaNMath` , `CommonSubexpressions` from official repositories.
@@ -55,7 +55,7 @@ Returns:
 To use simply add `include("~/path/to/Flowpipes.jl")` in your file.
 For a runnable example take a look at `./examples/approx_2.jl`.
 
-# TODOs
+## TODOs
 
 - ForwardDiff takes up much CPU cycles and has a long runtime. See `./benchmarks/profiler.txt` for Profiler results. Most of the cycles are spent in `jacobian.jl` and `partials.jl`.
 This is most likely because ForwardDiff does not use source code transformation, rather it computes derivatives (and higher-order derivatives) with operator overloading using dual numbers. This means for each higher-order derivative, hyper-dual numbers must be instantiated and calculated instead of one pass with pre-constructed functions `f'`, `f''`, `f'''`, etc.
@@ -65,7 +65,7 @@ This may mean that
 
 - Flowpipes gives woefully poor inner/outer approximations compared to RINO. I'm not sure exactly why and it's something to investigate.
 
-# Related Works
+## Related Works
 
 Eric Goubault and Sylvie Putot. 2017. Forward inner-approximated reachability of non-linear continuous systems. In *Proceedings of the 20th. ACM International Conference on Hybrid Systems: Computation and Control (HSCC '17)*. ACM Press, New York, NY, 1-10. DOI:<https://doi.org/10.1145/3049797.3049811> PDF:<http://www.lix.polytechnique.fr/Labo/Sylvie.Putot/Publications/hscc17.pdf>
 
@@ -76,10 +76,14 @@ PDF:<https://www.springer.com/gp/book/9783319017204>
 
 Jorge Stolfi and Luiz Henrique de Figueiredo. 1997. Self-Validated Numberical Methods and Applications. In *Proceedings of the 21st Brazilian Mathematics Colloquium*. ??? PDF:<http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.36.8089&rep=rep1&type=pdf>
 
-# Related Software
+## Related Software
 
 Robust INner and Outer Approximated Reachability (RINO)
 <https://github.com/cosynus-lix/RINO>
 
 Affine Arithmetic C++ Library (aaflib) 
 <http://aaflib.sourceforge.net>
+
+TaylorModels: Rigorous function approximation using Taylor models in Julia. This package produces tight outer approximations to flowpipes similar to Flowpipes.
+<https://github.com/JuliaIntervals/TaylorModels.jl >
+
