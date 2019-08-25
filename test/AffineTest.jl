@@ -233,11 +233,15 @@ end
  #=
  # Verify Affine-Constant operations where constant can be floats or ints.
 =#
-@testset "affine arithmetic constant ops" begin
+@testset "affine constant arithmetic ops" begin
     center = 12.0
     dev    = [3.0, 6.0, 9.0]
     ind    = [1,    3,    4]
     a = Affine(center, dev, ind)
+
+    @testset "neg" begin
+        @test -a == Affine(-center, -dev, ind)
+    end
 
     @testset "addition / subtraction" begin
         @test a + 2.0 == Affine(14.0, dev, ind)
@@ -263,10 +267,20 @@ end
     end
 end
 
-@testset "affine arithmetic hardcode ops" begin
+@testset "affine arithmetic hardcode pt. 1" begin
     center  = 26.10
     dev     = [2.11, -3.03, 4.59, 1.0, -10.0]
     ind     = [1,     3,    5,    8,    10]
+
+    @testset "power" begin
+        resetLastAffineIndex()
+        nCenter = 896.07645
+        nDev    = [110.142, -158.166, 239.598, 52.2, -522.0, 214.86645]
+        nInd    = [  1,        3,       5,      8,     10,    11]
+        a = Affine(center, dev, ind)
+        @test a^1 == a
+        @test isapprox(a^2, Affine(nCenter, nDev, nInd); tol=1E-8)
+    end
 
     # RINO uses CHEBYSHEV
     @testset "inverse" begin
@@ -277,10 +291,10 @@ end
         a = Affine(center)
         @test inv(a) == Affine(1 / center)
         a = Affine(center, dev, ind)
-        @test isapprox(inv(a), Affine(nCenter, nDev, nInd); tol=10E-8)
+        @test isapprox(inv(a), Affine(nCenter, nDev, nInd); tol=1E-7)
         resetLastAffineIndex()
         a = Affine(center, dev, ind)
-        @test isapprox(a^(-1), Affine(nCenter, nDev, nInd); tol=10E-8)
+        @test isapprox(a^(-1), Affine(nCenter, nDev, nInd); tol=1E-7)
     end
 
     @testset "inverse equivalencies" begin
@@ -296,16 +310,6 @@ end
         @test inva1 == inva2 == inva3
     end
 
-    @testset "power" begin
-        resetLastAffineIndex()
-        nCenter = 896.07645
-        nDev    = [110.142, -158.166, 239.598, 52.2, -522.0, 214.86645]
-        nInd    = [  1,        3,       5,      8,     10,    11]
-        a = Affine(center, dev, ind)
-        @test a^1 == a
-        @test isapprox(a^2, Affine(nCenter, nDev, nInd); tol=10E-8)
-    end
-
     @testset "sine" begin
         resetLastAffineIndex()
         nCenter = 6.0322966737821453
@@ -317,7 +321,7 @@ end
                 20.189433933491976]
         nInd = [1, 3, 5, 8, 10, 11]
         a = Affine(center, dev, ind)
-        @test isapprox(sin(a), Affine(nCenter, nDev, nInd); tol=10E-8 )
+        @test isapprox(sin(a), Affine(nCenter, nDev, nInd); tol=1E-8)
     end
 
     @testset "cosine" begin
@@ -331,7 +335,135 @@ end
                 19.945823920451314]
         nInd = [1, 3, 5, 8, 10, 11]
         a = Affine(center, dev, ind)
-        @test isapprox(cos(a), Affine(nCenter, nDev, nInd); tol=10E-8 )
+        @test isapprox(cos(a), Affine(nCenter, nDev, nInd); tol=1E-8)
+    end
+end
+
+@testset "affine arithmetic hardcode pt. 2" begin
+    @testset "test mult. w/ unmatching indexes" begin
+        resetLastAffineIndex()
+        c1 = 1.34
+        d1 = [0.21, 0.13]
+        i1 = [1,    2]
+        a1 = Affine(c1, d1, i1)
+        c2 = 2.61
+        d2 = [0.30, 0.09]
+        i2 = [2,    3]
+        a2 = Affine(c2, d2, i2)
+        res = a1*a2
+        act = Affine(3.5168999999999997,
+                     [0.54809999999999992,
+                      0.74130000000000007,
+                      0.1206,
+                      0.11309999999999999],
+                     Vector(1:4))
+        @test isapprox(res, act; tol=1E-8)
+    end
+
+    @testset "test mult. w/ diff. length" begin
+        resetLastAffineIndex()
+        c1 = 1.34
+        d1 = [0.21, 0.13]
+        i1 = [1,    2]
+        a1 = Affine(c1, d1, i1)
+        c2 = 2.61
+        d2 = [0.30, -0.09, 0.17]
+        i2 = [1,     2,    3]
+        a2 = Affine(c2, d2, i2)
+        res = a1*a2
+        act = Affine(3.52305,
+                     [0.95009999999999994,
+                      0.21870000000000001,
+                      0.22780000000000003,
+                      0.15305000000000002],
+                     Vector(1:4))
+        @test isapprox(res, act; tol=1E-8)
+    end
+    
+    @testset "test mult. w/ no common indexes" begin
+        resetLastAffineIndex()
+        c1 = 1.34
+        d1 = [0.21, 0.13]
+        i1 = [1,    2]
+        a1 = Affine(c1, d1, i1)
+        c2 = 2.61
+        d2 = [0.30, 0.09]
+        i2 = [3,    4]
+        a2 = Affine(c2, d2, i2)
+        res = a1*a2
+        act = Affine(3.4974,
+                     [0.5481
+                      0.3393
+                      0.402
+                      0.1206
+                      0.1326],
+                     Vector(1:5))
+        @test isapprox(res, act; tol=1E-8)
+    end
+
+    @testset "affine power w/ refl. n=2,3,4,5" begin
+        resetLastAffineIndex()
+        a = Affine(1.34, [0.21, -0.13, 0.09], [1, 2, 3])
+        @test sameForm(a^2,
+                       Affine(1.88805, [0.5628, -0.3484, 0.2412, 0.09245]);
+                       tol=1E-8)
+        @test sameForm(a^3,
+                       Affine(2.7766959445512018,
+                              [1.170057, -0.724321, 0.501453, 0.37270605544879931]);
+                       tol=1E-8)
+        @test sameForm(a^4,
+                       Affine(4.226146847006234,
+                              [2.2292508, -1.3800124, 0.9553932, 1.0242591629937676]);
+                       tol=1E-8)
+        @test sameForm(a^5,
+                       Affine(6.6037146874882033,
+                              [4.0897813341, 
+                               -2.5317693973, 
+                               1.7527634289, 
+                               2.3946316179117968]);
+                       tol=1E-8)
+
+        a = -a
+        @test sameForm(a^2,
+                       Affine(1.88805, [0.5628, -0.3484, 0.2412, -0.09245]);
+                       tol=1E-8)
+        @test sameForm(a^3,
+                       Affine(-2.7766959445512018,
+                              [-1.170057, 0.724321, -0.501453, 0.37270605544879931]);
+                       tol=1E-8)
+        @test sameForm(a^4,
+                       Affine(4.226146847006234,
+                              [2.2292508, -1.3800124, 0.9553932, -1.0242591629937676]);
+                       tol=1E-8)
+        @test sameForm(a^5,
+                       Affine(-6.6037146874882033,
+                              [-4.0897813341, 
+                               2.5317693973, 
+                               -1.7527634289, 
+                               2.3946316179117968]);
+                       tol=1E-8)
+    end
+end
+
+@testset "affine arithmetic gen." begin
+    a₀ = rand(MIN .. MAX)
+    b₀ = rand(MIN .. MAX)
+
+    # xy = x₀ŷ₀ + ½∑ᴺᵢxᵢyᵢ + ∑ᴺᵢ(xᵢy₀+yᵢx₀)ϵᵢ + [(∑ᴺᵢ|xᵢ|)(∑ᴺᵢ|yᵢ|) - ½∑ᴺᵢ|xᵢyᵢ|]μₖ
+    @testset "multiplication" begin
+        resetLastAffineIndex()
+        acoeff = [rand(MIN .. MAX) for i in 1:4]
+        bcoeff = [rand(MIN .. MAX) for i in 1:4]
+        ainds  = Vector(1:4)
+        binds  = Vector(1:4)
+        a = Affine(a₀, acoeff, ainds)
+        b = Affine(b₀, bcoeff, binds)
+        res = a*b
+        act = Affine(a₀*b₀ + 0.5*(acoeff' * bcoeff),
+                     [(b₀*acoeff) .+ (a₀*bcoeff); 
+                      sum(abs.(acoeff))*sum(abs.(bcoeff)) - 0.5*sum(abs.(acoeff .* bcoeff))],
+                     Vector(1:5))
+        @test res == act
     end
 end
 

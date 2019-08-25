@@ -17,18 +17,18 @@ using ForwardDiff
 include("../Flowpipes.jl")
 
 # problem z' = f(z) where f(z) = Az
-f(z::Vector) = [11 -25; 4 -9] * z
-#
-# initial conditions
-z0 = [Affine(6.0 ± 0.1); Affine(2.0 ± 0.1)]
-τ = 0.05
-d = 20
+f(z::Vector) = [0 1; -64 -16] * z
 
 # analytical solution
-z(t::Real) = exp(t)*[5; 2] + exp(t)*[1; 0] + 2*t*exp(t)*[5; 2]
+z(t::Real) = exp(-8*t)*[1 + 28*t; 20 - 224*t]
+
+# initial conditions
+z0 = [Affine(z(0.0)[1] ± 0.1); Affine(z(0.0)[2] ± 0.1)]
+τ = 0.02
+d = 10
 
 # constructed taylor approximation
-cT = constructTM(f; order=5)
+cT = constructTM(f; order=6)
 # instance of taylor approximation
 T(t::Real) = cT(t, 0.0, z0, z0)
 

@@ -78,6 +78,7 @@ end
  # [zₒ] ≡ Affine(center([zₒ])), etc... However we permit evaluating for any type T for zⱼ
  #
 =#
+
 function constructJacTM(f::Function; order::Int=5)
 
     # store the lie derivatives f⁽ⁱ⁾ (i = 1,…,order) in vf
@@ -176,22 +177,15 @@ fixedPoint(f::Function, z0::Vector{<:Interval}, τ::Real) = fixedPoint(f, Affine
  #=
  # Compute a priori enclosure for [Rⱼ₊₁]
  #
- # TODO: not clear about implementation
 
 fixedPoint uses
-L[z] = J₀ + [0, τ] [J∘f]([z])
+L[z] = z₀ + [0, τ] [f]([z])
 
 whereas fixedJacPoint uses
 [Jᵣ] = Jf([r])
-F[J] = J₀ + [0, τ] [Jᵣ] [J]
+F[J] = J₀ + [0, τ] [f]([r]) [J]
 =#
 function fixedJacPoint(f::Function, J₀::Matrix{Affine}, r::Vector{Affine}, τ::Real)
-    # RINO:
-    #Jac1_g_rough[j][k] = odeVAR_g.x[j][1].d(k);
-    #fixpoint(J_rough, Jac1_g_rough, J, tau); output = J_rough
-    #void fixpoint(vector<vector<AAF>> &y0, vector<vector<AAF>> &Jac1_g_rough, vector<vector<AAF>> &J0, double tau)
-    #multMiMi(fJ0, Jac1_g_rough, y0); // fJ0 = Jac1_g_rough * y0
-    #J1[i][j] = J0[i][j] + interval(0, tau) * fJ0[i][j].convert_int();
     iter = 1
     t    = Affine(0, τ)
     x    = Affine(-1,  1)
@@ -282,21 +276,83 @@ function approximate(f::Function, tspan::NTuple{2,<:Real}, τ::Real,
     # forms approximating the center of inputs at time tⱼ
     z₀ⱼ     = Affine.(mid.(z₀))
     tₙ      = tspan[2]
-    T       = constructTM(f; order=order)
-    JacT    = constructJacTM(f; order=order)
+    #T       = constructTM(f; order=order)
+    #JacT    = constructJacTM(f; order=order)
+    vf = [f]
+    for i in 2:order
+        fi = (z::Vector -> ForwardDiff.jacobian(vf[i - 1], z) * f(z))
+        vf = vcat(vf, fi)
+    end
+    vJacf = [ ]
+    for i in 1:order
+        Jacfi = (z::Vector -> ForwardDiff.jacobian(vf[i], z))
+        vJacf = vcat(vJacf, Jacfi)
+    end
     # preallocate array to store tⱼ, zⱼ, iaⱼ
     st  = [tⱼ]
     sz  = z₀
-    sia = fill(NaN, length(z₀))
+    sia = z₀
 
     while(tⱼ < tₙ)
         disp("iteration = $(iter); tⱼ = $(tⱼ)")
         r     = fixedPoint(f, zⱼ, τ)
-        zⱼ    = T(tⱼ + τ, tⱼ, zⱼ, r)
+        #zⱼ    = T(tⱼ + τ, tⱼ, zⱼ, r)
+
+        # new [zⱼ] = [zⱼ] + ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
+        acc = zⱼ
+        for i in 1:(order - 1)
+            term = 1.0
+            for l in 1:i
+                term *= τ / l
+            end
+            acc += term * vf[i](zⱼ)
+        end
+        term = 1.0
+        for l in 1:order
+            term *= τ / l
+        end
+        acc += term * vf[order](r)
+        zⱼ = acc
+
         r₀    = fixedPoint(f, z₀ⱼ, τ)
-        z₀ⱼ   = T(tⱼ + τ, tⱼ, z₀ⱼ, r₀)
+        #z₀ⱼ   = T(tⱼ + τ, tⱼ, z₀ⱼ, r₀)
+
+        # new [z₀ⱼ] = [zⱼ] + ∑ᵢ(t-tⱼ)ⁱ/i! f⁽ⁱ⁾([zⱼ]) + (t-tⱼ)ᵏ/k! f⁽ᵏ⁾([rⱼ₊₁])
+        acc = z₀ⱼ
+        for i in 1:(order - 1)
+            term = 1.0
+            for l in 1:i
+                term *= τ / l
+            end
+            acc += term * vf[i](z₀ⱼ)
+        end
+        term = 1.0
+        for l in 1:order
+            term *= τ / l
+        end
+        acc += term * vf[order](r₀)
+        z₀ⱼ = acc
+
         R     = fixedJacPoint(f, Jⱼ, r, τ)
-        Jⱼ    = JacT(tⱼ + τ, tⱼ, zⱼ, Jⱼ, r, R)
+        #Jⱼ    = JacT(tⱼ + τ, tⱼ, zⱼ, Jⱼ, r, R)
+
+        # cJacTM(t,tⱼ,[zⱼ],[Jⱼ],[rⱼ₊₁],[Rⱼ₊₁])
+        # = [Jⱼ] + ∑{i=1,…,k-1} (t-tⱼ)ⁱ/i! Jac f⁽ⁱ⁾([zⱼ]) [Jⱼ] + (t-tⱼ)ᵏ/k! Jac f⁽ᵏ⁾([rⱼ₊₁]) [Rⱼ₊₁]
+        acc = Jⱼ
+        for i in 1:(order - 1)
+            term = 1.0
+            for l in 1:i
+                term *= τ / l
+            end
+            acc += term * vJacf[i](zⱼ) * Jⱼ
+        end
+        term = 1.0
+        for l in 1:order
+            term *=  τ / l
+        end
+        acc += term * vJacf[order](r) * R
+        Jⱼ = acc
+
         # compute inner approximation
         iaⱼ   = innerApproximate(z₀ⱼ, Jⱼ, z₀)
         # save the outer approx. zⱼ and inner approx. iaⱼ

@@ -18,9 +18,9 @@ f(z::Vector) = [0 1; -64 -16] * z
 
 # initial conditions
 # tₙ = 0.3. τ = 0.05 -> 6 steps
-tspan = (0.0, 0.6)
-τ     = 0.03
-z₀ = [1.0 ± 0.05, 10.0 ± 0.05]
+tspan = (0.0, 1.0)
+τ     = 0.05
+z₀ = [1.0 ± 1.0, -10.0 .. 12.0]
 
 disp("getting inner and outer approximations")
 st, sz, sia = approximate(f, tspan, τ, z₀)

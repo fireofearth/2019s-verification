@@ -6,3 +6,6 @@
 */output_sauv/
 docs/
 */CMakeLists.txt
+
+*.aux
+*.log
